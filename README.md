@@ -59,3 +59,25 @@ The current release is a starting point, not a complete replacement for professi
 ## License
 
 Released under the MIT License. See [LICENSE](LICENSE). Third-party libraries and assets added in the future must retain their own notices and compatible licenses.
+
+
+## Why OpenCreative?
+
+OpenCreative brings useful creative starter tools together in one browser-based workspace. It is designed to be free to use, local-first, built with original code, and developed openly so the project can grow with community contributions.
+
+## Screenshots
+
+Screenshots and product previews will be added here as the interface evolves. You can currently explore the tools by opening the app from this repository.
+
+## How to Get Started
+
+1. Open the repository's `index.html` file, or download/clone the repository.
+2. Launch `index.html` in a modern web browser.
+3. Choose a tool from the workspace and open a local file when needed.
+4. For microphone access and browser features that require a secure context, run the app through HTTPS or localhost.
+
+Some features depend on browser and device support. Keep your original files safe and test exports before relying on them for important work.
+
+## Project Tagline
+
+**OpenCreative — One creative universe. Countless possibilities. Free and open source.**
