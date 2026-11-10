@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#10131d">
+<title>OpenCreative — Open creative studio</title>
+<style>
+:root{--bg:#0b0e16;--panel:#131827;--panel2:#1a2234;--line:#2a344b;--text:#eef2ff;--muted:#9aa7c1;--accent:#9b8cff;--accent2:#55d6be;--danger:#ff7188}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 15% -10%,#24204a 0,transparent 45%),var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+button,input,select{font:inherit}button{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:9px 12px;border-radius:10px;cursor:pointer}button:hover{border-color:var(--accent)}button.primary{background:var(--accent);color:#100d20;border:0;font-weight:700}button:disabled{opacity:.45;cursor:not-allowed}
+header{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#0d111deF;backdrop-filter:blur(12px);z-index:5}
+.brand{font-weight:850;font-size:20px;letter-spacing:-.7px}.brand span{color:var(--accent)}.top-actions{display:flex;gap:8px;align-items:center}.badge{font-size:11px;color:var(--accent2);border:1px solid #285c58;border-radius:99px;padding:4px 8px}
+main{max-width:1400px;margin:auto;padding:24px}.hero{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:22px}.eyebrow{color:var(--accent2);text-transform:uppercase;letter-spacing:1.8px;font-size:11px;font-weight:800}.hero h1{font-size:clamp(28px,5vw,46px);line-height:1.04;margin:8px 0}.hero p{color:var(--muted);max-width:650px;margin:0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}.card{background:linear-gradient(145deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:16px;padding:18px;min-height:156px;display:flex;flex-direction:column;gap:8px}.card .icon{font-size:25px}.card h3{margin:0;font-size:17px}.card p{color:var(--muted);font-size:13px;margin:0;flex:1}.card button{align-self:flex-start}.workspace{display:none}.workspace.active{display:block}.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--panel);border:1px solid var(--line);padding:12px;border-radius:14px;margin:12px 0}.toolbar label{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center}.toolbar input[type=color]{width:35px;height:30px;padding:0;border:0;background:none}.toolbar input[type=range]{width:100px}.stage{background:#080b12;border:1px solid var(--line);border-radius:14px;min-height:320px;padding:12px;display:flex;align-items:center;justify-content:center;overflow:auto}.stage canvas{max-width:100%;height:auto;background:white;touch-action:none}.stage svg{background:white;max-width:100%;height:auto}.back{margin-bottom:8px}.muted{color:var(--muted)}.two{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:14px}.side{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px}.side h3{margin-top:0}.side p{color:var(--muted);font-size:13px}.fileinput{max-width:220px}.notice{border:1px solid #5b4e8e;background:#211d39;padding:12px 14px;border-radius:12px;color:#dcd5ff;margin:16px 0;font-size:13px}.video-box video{max-width:100%;max-height:60vh}.pdf-frame{width:100%;height:70vh;border:0;background:white}.hidden{display:none!important}footer{color:var(--muted);font-size:12px;padding:30px 0;text-align:center}
+@media(max-width:760px){header{padding:12px}main{padding:16px}.hero{display:block}.hero .badge{display:inline-block;margin-top:12px}.two{grid-template-columns:1fr}.top-actions .badge{display:none}.stage{min-height:260px}}
+</style>
+</head>
+<body>
+<header><div class="brand">✦ Open<span>Creative</span></div><div class="top-actions"><span class="badge">OPEN SOURCE • LOCAL FIRST</span><button id="homeBtn">Studio home</button></div></header>
+<main>
+<section id="home">
+<div class="hero"><div><div class="eyebrow">Your creative workspace</div><h1>Make something<br>remarkable.</h1><p>A free, browser-based creative studio. Start with practical tools for images, vectors, video, audio and PDFs. Your files stay on your device unless you export or share them.</p></div><span class="badge">No account required</span></div>
+<div class="notice"><b>Early access:</b> This is an independent open-source project, not an Adobe product or a complete replacement for every professional Adobe feature. The tools below are real local-first starting points; more advanced workflows are planned.</div>
+<div class="grid">
+<article class="card"><div class="icon">🖼️</div><h3>Pixel Studio</h3><p>Draw, erase, add text and shapes, open images and export PNG artwork.</p><button data-open="image">Open editor →</button></article>
+<article class="card"><div class="icon">✒️</div><h3>Vector Studio</h3><p>Create scalable SVG compositions with editable shapes and text.</p><button data-open="vector">Open editor →</button></article>
+<article class="card"><div class="icon">🎬</div><h3>Video Studio</h3><p>Preview a local clip, set an in/out range and export a trimmed recording where supported.</p><button data-open="video">Open editor →</button></article>
+<article class="card"><div class="icon">🎙️</div><h3>Audio Studio</h3><p>Record microphone audio locally and download it as an audio file.</p><button data-open="audio">Open recorder →</button></article>
+<article class="card"><div class="icon">📄</div><h3>PDF Desk</h3><p>Open and preview a local PDF using your browser's built-in PDF viewer.</p><button data-open="pdf">Open PDF desk →</button></article>
+<article class="card"><div class="icon">🗂️</div><h3>Project Vault</h3><p>Save and reopen your vector project as a portable JSON file.</p><button data-open="vault">Open projects →</button></article>
+</div>
+<h2 style="margin-top:30px">Roadmap — the wider creative ecosystem</h2>
+<div class="grid">
+<div class="card"><div class="icon">📷</div><h3>Photo workflow</h3><p>RAW development, cataloguing, presets and batch processing.</p><span class="badge">Planned</span></div>
+<div class="card"><div class="icon">✨</div><h3>Motion & compositing</h3><p>Keyframes, layers, effects, tracking and node-based compositing.</p><span class="badge">Planned</span></div>
+<div class="card"><div class="icon">📚</div><h3>Publishing & layout</h3><p>Multi-page documents, typography, preflight and print export.</p><span class="badge">Planned</span></div>
+<div class="card"><div class="icon">🧊</div><h3>3D Workshop</h3><p>Mesh editing, materials, lighting and rendering workflows.</p><span class="badge">Planned</span></div>
+<div class="card"><div class="icon">🧩</div><h3>Animation</h3><p>2D timelines, rigs, frame animation and sprite export.</p><span class="badge">Planned</span></div>
+<div class="card"><div class="icon">☁️</div><h3>Sync & collaboration</h3><p>Optional self-hosted storage, sharing, comments and version history.</p><span class="badge">Planned</span></div>
+</div>
+</section>
+<section id="image" class="workspace">
+<button class="back">← Back</button><h2>Pixel Studio</h2><div class="toolbar">
+<label>Tool <select id="paintTool"><option value="brush">Brush</option><option value="erase">Eraser</option><option value="line">Line</option><option value="rect">Rectangle</option><option value="circle">Circle</option><option value="text">Text</option></select></label>
+<label>Color <input type="color" id="paintColor" value="#29245f"></label><label>Size <input type="range" id="paintSize" min="1" max="60" value="6"></label>
+<input class="fileinput" type="file" id="imageFile" accept="image/*"><button id="clearCanvas">Clear</button><button class="primary" id="savePng">Export PNG</button></div>
+<div class="stage"><canvas id="paintCanvas" width="1000" height="650"></canvas></div>
+<p class="muted">Tip: On touchscreens, drag a finger or stylus across the canvas. Text tool prompts for a label.</p>
+</section>
+<section id="vector" class="workspace">
+<button class="back">← Back</button><h2>Vector Studio</h2><div class="toolbar">
+<label>Shape <select id="vectorShape"><option value="rect">Rectangle</option><option value="circle">Circle</option><option value="line">Line</option><option value="text">Text</option></select></label>
+<label>Fill <input type="color" id="vectorFill" value="#9b8cff"></label><label>Stroke <input type="color" id="vectorStroke" value="#252044"></label><label>Width <input type="range" id="vectorWidth" min="0" max="20" value="3"></label>
+<button id="vectorClear">Clear</button><button class="primary" id="saveSvg">Export SVG</button><button id="saveProject">Save project JSON</button></div>
+<div class="stage"><svg id="vectorCanvas" xmlns="http://www.w3.org/2000/svg" width="1000" height="650" viewBox="0 0 1000 650"></svg></div>
+<p class="muted">Drag on the artboard to add a shape. Select Text to place a text label. SVG remains resolution-independent.</p>
+</section>
+<section id="video" class="workspace">
+<button class="back">← Back</button><h2>Video Studio</h2><div class="toolbar"><input type="file" id="videoFile" accept="video/*"><label>In (sec) <input id="videoIn" type="number" min="0" step=".1" value="0" style="width:75px"></label><label>Out (sec) <input id="videoOut" type="number" min="0" step=".1" value="10" style="width:75px"></label><button id="setOut">Use current time as Out</button><button class="primary" id="exportClip">Export trimmed clip</button></div>
+<div class="stage video-box"><video id="videoPreview" controls playsinline></video></div><p id="videoStatus" class="muted">Choose a video from your device. Export uses browser MediaRecorder and depends on browser codec support.</p>
+</section>
+<section id="audio" class="workspace">
+<button class="back">← Back</button><h2>Audio Studio</h2><div class="toolbar"><button class="primary" id="recordAudio">● Start recording</button><button id="stopAudio" disabled>Stop</button><span id="audioStatus" class="muted">Microphone permission is requested only when you start recording.</span></div><div class="stage" style="flex-direction:column;gap:12px"><div style="font-size:52px">🎙️</div><audio id="audioPlayback" controls class="hidden"></audio><a id="audioDownload" class="hidden" download="opencreative-recording.webm">Download recording</a></div>
+</section>
+<section id="pdf" class="workspace">
+<button class="back">← Back</button><h2>PDF Desk</h2><div class="toolbar"><input type="file" id="pdfFile" accept="application/pdf"><span class="muted">PDF preview is handled by your browser. Editing and page rearrangement are planned.</span></div><div class="stage" style="display:block;padding:0"><iframe id="pdfPreview" class="pdf-frame" title="PDF preview"></iframe></div>
+</section>
+<section id="vault" class="workspace">
+<button class="back">← Back</button><h2>Project Vault</h2><div class="card"><h3>Local project files</h3><p>Open an OpenCreative SVG project JSON file or start a new vector project. Files are stored on your device, not uploaded to a server.</p><input type="file" id="projectFile" accept=".json,application/json"><button id="newProject">New vector project</button></div>
+</section>
+<footer>OpenCreative • Independent open-source creative tools • MIT License • Built for the web</footer>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+function show(name){$('home').style.display='none';document.querySelectorAll('.workspace').forEach(x=>x.classList.remove('active'));$(name).classList.add('active');}
+function home(){document.querySelectorAll('.workspace').forEach(x=>x.classList.remove('active'));$('home').style.display='block';}
+document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>show(b.dataset.open));
+document.querySelectorAll('.back').forEach(b=>b.onclick=home);$('homeBtn').onclick=home;
+const canvas=$('paintCanvas'),ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+let drawing=false,start=null,last=null;
+function point(e){const r=canvas.getBoundingClientRect();return{x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height}}
+canvas.addEventListener('pointerdown',e=>{drawing=true;canvas.setPointerCapture(e.pointerId);start=last=point(e);if($('paintTool').value==='text'){let t=prompt('Text to add:');if(t){ctx.fillStyle=$('paintColor').value;ctx.font=`${Math.max(18,+$('paintSize').value*4)}px sans-serif`;ctx.fillText(t,start.x,start.y)}drawing=false}});
+canvas.addEventListener('pointermove',e=>{if(!drawing)return;let p=point(e),tool=$('paintTool').value;ctx.lineWidth=+$('paintSize').value;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle=tool==='erase'?'#ffffff':$('paintColor').value;ctx.fillStyle=$('paintColor').value;if(tool==='brush'||tool==='erase'){ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(p.x,p.y);ctx.stroke();last=p}});
+canvas.addEventListener('pointerup',e=>{if(!drawing)return;let p=point(e),tool=$('paintTool').value;ctx.lineWidth=+$('paintSize').value;ctx.strokeStyle=$('paintColor').value;ctx.fillStyle=$('paintColor').value;if(tool==='line'||tool==='rect'||tool==='circle'){ctx.beginPath();if(tool==='line'){ctx.moveTo(start.x,start.y);ctx.lineTo(p.x,p.y)}else if(tool==='rect')ctx.rect(start.x,start.y,p.x-start.x,p.y-start.y);else{let dx=p.x-start.x,dy=p.y-start.y;ctx.ellipse(start.x,start.y,Math.abs(dx),Math.abs(dy),0,0,Math.PI*2)}ctx.stroke()}drawing=false});
+$('clearCanvas').onclick=()=>{ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height)};
+$('savePng').onclick=()=>{let a=document.createElement('a');a.download='opencreative-artwork.png';a.href=canvas.toDataURL('image/png');a.click()};
+$('imageFile').onchange=e=>{let f=e.target.files[0];if(!f)return;let img=new Image();img.onload=()=>{ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);let s=Math.min(canvas.width/img.width,canvas.height/img.height);ctx.drawImage(img,(canvas.width-img.width*s)/2,(canvas.height-img.height*s)/2,img.width*s,img.height*s);URL.revokeObjectURL(img.src)};img.src=URL.createObjectURL(f)};
+const svg=$('vectorCanvas');let vStart=null,vDrag=false;
+function svgPoint(e){let p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(svg.getScreenCTM().inverse())}
+svg.addEventListener('pointerdown',e=>{vDrag=true;vStart=svgPoint(e);svg.setPointerCapture(e.pointerId)});
+svg.addEventListener('pointerup',e=>{if(!vDrag)return;let p=svgPoint(e),shape=$('vectorShape').value,fill=$('vectorFill').value,stroke=$('vectorStroke').value,w=$('vectorWidth').value,el;
+if(shape==='rect'){el=document.createElementNS('http://www.w3.org/2000/svg','rect');el.setAttribute('x',Math.min(vStart.x,p.x));el.setAttribute('y',Math.min(vStart.y,p.y));el.setAttribute('width',Math.abs(p.x-vStart.x));el.setAttribute('height',Math.abs(p.y-vStart.y));el.setAttribute('fill',fill)}
+if(shape==='circle'){el=document.createElementNS('http://www.w3.org/2000/svg','ellipse');el.setAttribute('cx',(vStart.x+p.x)/2);el.setAttribute('cy',(vStart.y+p.y)/2);el.setAttribute('rx',Math.abs(p.x-vStart.x)/2);el.setAttribute('ry',Math.abs(p.y-vStart.y)/2);el.setAttribute('fill',fill)}
+if(shape==='line'){el=document.createElementNS('http://www.w3.org/2000/svg','line');el.setAttribute('x1',vStart.x);el.setAttribute('y1',vStart.y);el.setAttribute('x2',p.x);el.setAttribute('y2',p.y);el.setAttribute('fill','none')}
+if(shape==='text'){el=document.createElementNS('http://www.w3.org/2000/svg','text');el.setAttribute('x',p.x);el.setAttribute('y',p.y);el.setAttribute('font-size','36');el.setAttribute('fill',fill);el.textContent=prompt('Text to add:')||''}
+if(el){el.setAttribute('stroke',stroke);el.setAttribute('stroke-width',w);svg.appendChild(el)}vDrag=false});
+$('vectorClear').onclick=()=>svg.replaceChildren();
+function download(name,blob){let u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+$('saveSvg').onclick=()=>download('opencreative-artwork.svg',new Blob([new XMLSerializer().serializeToString(svg)],{type:'image/svg+xml'}));
+function saveProject(){download('opencreative-project.json',new Blob([JSON.stringify({format:'OpenCreativeProject',version:1,svg:new XMLSerializer().serializeToString(svg)},null,2)],{type:'application/json'}))}
+$('saveProject').onclick=saveProject;
+$('projectFile').onchange=async e=>{try{let j=JSON.parse(await e.target.files[0].text());if(j.format!=='OpenCreativeProject'||!j.svg)throw Error('Not an OpenCreative project');svg.innerHTML=new DOMParser().parseFromString(j.svg,'image/svg+xml').documentElement.innerHTML;show('vector')}catch(err){alert(err.message)}};
+$('newProject').onclick=()=>{svg.replaceChildren();show('vector')};
+let videoUrl=null;$('videoFile').onchange=e=>{if(videoUrl)URL.revokeObjectURL(videoUrl);let f=e.target.files[0];if(!f)return;videoUrl=URL.createObjectURL(f);$('videoPreview').src=videoUrl;$('videoPreview').onloadedmetadata=()=>{$('videoIn').value=0;$('videoOut').value=$('videoPreview').duration.toFixed(1)}};
+$('setOut').onclick=()=>$('videoOut').value=$('videoPreview').currentTime.toFixed(1);
+$('exportClip').onclick=async()=>{const v=$('videoPreview'),a=+$('videoIn').value,b=+$('videoOut').value;if(!v.src||!Number.isFinite(b)||b<=a||b>v.duration){$('videoStatus').textContent='Choose a valid video and set an Out time after In.';return}if(!v.captureStream||!window.MediaRecorder){$('videoStatus').textContent='This browser does not support video capture export. You can still preview your clip.';return}
+try{v.pause();v.currentTime=a;await new Promise(res=>v.onseeked=res);let stream=v.captureStream(),mime=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(x=>MediaRecorder.isTypeSupported(x));let rec=new MediaRecorder(stream,mime?{mimeType:mime}:{}),chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};rec.onstop=()=>{download('opencreative-trim.webm',new Blob(chunks,{type:rec.mimeType||'video/webm'}));$('videoStatus').textContent='Export ready. Note: browser codec support varies.'};rec.start();v.play();let timer=setInterval(()=>{if(v.currentTime>=b||v.ended){clearInterval(timer);v.pause();rec.stop();stream.getTracks().forEach(t=>t.stop())}},80);$('videoStatus').textContent='Recording selected playback range…'}catch(err){$('videoStatus').textContent='Export failed: '+err.message}};
+let recorder=null,audioChunks=[],audioStream=null;
+$('recordAudio').onclick=async()=>{try{audioStream=await navigator.mediaDevices.getUserMedia({audio:true});recorder=new MediaRecorder(audioStream);audioChunks=[];recorder.ondataavailable=e=>{if(e.data.size)audioChunks.push(e.data)};recorder.onstop=()=>{let blob=new Blob(audioChunks,{type:recorder.mimeType||'audio/webm'}),url=URL.createObjectURL(blob);$('audioPlayback').src=url;$('audioPlayback').classList.remove('hidden');$('audioDownload').href=url;$('audioDownload').classList.remove('hidden');$('audioStatus').textContent='Recording saved locally.';audioStream.getTracks().forEach(t=>t.stop())};recorder.start();$('recordAudio').disabled=true;$('stopAudio').disabled=false;$('audioStatus').textContent='Recording…'}catch(err){$('audioStatus').textContent='Microphone unavailable: '+err.message}};
+$('stopAudio').onclick=()=>{if(recorder&&recorder.state==='recording')recorder.stop();$('recordAudio').disabled=false;$('stopAudio').disabled=true};
+$('pdfFile').onchange=e=>{let f=e.target.files[0];if(f){$('pdfPreview').src=URL.createObjectURL(f)}};
+</script>
+</body></html>
