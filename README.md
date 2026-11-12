@@ -81,3 +81,16 @@ Some features depend on browser and device support. Keep your original files saf
 ## Project Tagline
 
 **OpenCreative — One creative universe. Countless possibilities. Free and open source.**
+
+## Join the Community
+
+OpenCreative grows through feedback and contributions. You do not need to be an expert developer to help.
+
+- **Report a bug:** [Open a bug report](../../issues/new?template=bug_report.md)
+- **Suggest an idea:** [Request a feature](../../issues/new?template=feature_request.md)
+- **Contribute code or documentation:** Read [CONTRIBUTING.md](CONTRIBUTING.md).
+- **Community standards:** Read our [Code of Conduct](CODE_OF_CONDUCT.md).
+- **Get help:** See [SUPPORT.md](SUPPORT.md).
+- **Discuss the roadmap:** Visit [GitHub Discussions](../../discussions) when enabled.
+
+Good first contributions include improving documentation, testing a tool in another browser, reporting a reproducible bug, and suggesting a focused improvement.
