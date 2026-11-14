@@ -101,7 +101,7 @@ Good first contributions include improving documentation, testing a tool in anot
 Open `productivity.html` or choose **Productivity Workspace** from the home page to use the local-first productivity apps:
 
 - **Writer:** rich-text editing with HTML and TXT export.
-- **Sheets:** editable grid, basic arithmetic and SUM/AVERAGE/MIN/MAX formulas, CSV import/export.
+- **Sheets:** multiple worksheets, cell bold/italic and text/fill colors, alignment, row filtering, sorting by the selected column, formula bar, CSV import/export, and XLSX workbooks with multiple sheets.
 - **Tasks:** add, complete, due-date and delete tasks.
 - **Notes:** create, edit, search and delete notes.
 - **Calendar:** create local events and export an ICS calendar.
@@ -116,5 +116,9 @@ Productivity data is stored in the current browser's local storage. It is not sy
 - **Sheets:** import and export `.xlsx` workbooks, preserving cell values and common formulas where supported; CSV remains available.
 - DOCX import uses Mammoth.js; DOCX packaging uses JSZip; XLSX processing uses SheetJS Community Edition. These browser libraries load on demand from their public CDNs.
 - The selected document/workbook is processed in the browser. OpenCreative does not upload its contents to an OpenCreative server. Loading the libraries does make a request to the relevant CDN.
-- **Compatibility limits:** this is not a full Microsoft Office renderer. DOCX import/export focuses on text, paragraphs, headings, basic emphasis and lists; images and complex layouts may not be preserved. XLSX import currently reads the first worksheet; advanced Excel features, macros, external links and exact formatting fidelity are not guaranteed. Formula support depends on the browser library and existing lightweight grid.
+- **Compatibility limits:** this is not a full Microsoft Office renderer. DOCX import/export focuses on text, paragraphs, headings, basic emphasis and lists; images and complex layouts may not be preserved. XLSX import currently reads the first worksheet; advanced Excel features, macros, external links and exact formatting fidelity are not guaranteed. Formula calculations are evaluated by OpenCreative's local formula engine; supported functions include SUM, AVERAGE, MIN, MAX, COUNT, COUNTA, IF, AND, OR, NOT, ROUND, ABS, SQRT, POWER, CONCAT, LEN, UPPER and LOWER, plus cell references, ranges and arithmetic/comparison operators. XLSX formula expressions are imported/exported, but recalculation is performed by OpenCreative when opened in the app or by the spreadsheet app that opens the workbook.
 - If a CDN is unavailable or the device is offline, existing local Writer/Sheets features continue to work; Office import/export will be unavailable until the library can load.
+
+### Spreadsheet engine
+
+The Sheets workspace supports multiple named worksheets, adding/renaming/deleting sheets, a formula bar, cell bold/italic, text and fill colors, alignment, sorting by the selected column, and live row filtering. The formula parser supports cell references, ranges, arithmetic and comparisons, plus SUM, AVERAGE, MIN, MAX, COUNT, COUNTA, IF, AND, OR, NOT, ROUND, ABS, SQRT, POWER, CONCAT, LEN, UPPER and LOWER. XLSX import/export includes all worksheets and formula expressions. Formatting is stored in OpenCreative's local workspace; exact Excel style fidelity, charts, pivot tables, macros, external workbook links and advanced Excel functions are not supported. XLSX import/export requires the SheetJS library to load from its public CDN.
