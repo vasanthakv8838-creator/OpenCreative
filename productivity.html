@@ -69,4 +69,5 @@ $('saveForm').onclick=()=>{data.form={title:$('formTitle').value.trim()||'Untitl
 $('exportResponses').onclick=()=>{const rows=[['date','form','question','answer'],...data.responses.map(r=>[r.date,r.form,r.question,r.answer])];download('opencreative-form-responses.csv',rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n'),'text/csv')};
 $('exportAll').onclick=()=>download('opencreative-backup.json',JSON.stringify(data,null,2),'application/json');$('importAll').onclick=()=>$('backupFile').click();$('backupFile').onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(!obj||typeof obj!=='object'||!obj.doc||!Array.isArray(obj.tasks)||!Array.isArray(obj.notes)||!Array.isArray(obj.events)||!Array.isArray(obj.sheet))throw Error('This file is not a valid OpenCreative backup.');data={...blank(),...obj};persist();location.reload()}catch(err){alert('Import failed: '+err.message)}e.target.value=''};
 renderTasks();renderNotes();renderEvents();renderSheet();renderForm();
-</script></body></html>
+</script><script src="productivity-interoperability.js" defer></script>
+</body></html>
