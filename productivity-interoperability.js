@@ -42,25 +42,30 @@
   };
   const docStatus = (text) => { const el = document.getElementById("docStatus"); if (el) el.textContent = text; };
   const xmlEscape = (s) => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");
-  const wordRun = (node) => {
-    if (node.nodeType === Node.TEXT_NODE) return xmlEscape(node.nodeValue || "");
+  const wordInline = (node, props = {}) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.nodeValue || "";
+      if (!text) return "";
+      const p = [];
+      if (props.bold) p.push("<w:b/>");
+      if (props.italic) p.push("<w:i/>");
+      if (props.underline) p.push('<w:u w:val="single"/>');
+      return '<w:r>' + (p.length ? "<w:rPr>" + p.join("") + "</w:rPr>" : "") + '<w:t xml:space="preserve">' + xmlEscape(text) + "</w:t></w:r>";
+    }
     if (node.nodeType !== Node.ELEMENT_NODE) return "";
     const tag = node.tagName.toLowerCase();
-    if (tag === "br") return '<w:r><w:br/></w:r>';
+    if (tag === "br") return "<w:r><w:br/></w:r>";
     if (tag === "img" || tag === "script" || tag === "style") return "";
-    const inner = [...node.childNodes].map(wordRun).join("");
-    if (!inner) return "";
-    const props = [];
-    if (tag === "b" || tag === "strong") props.push("<w:b/>");
-    if (tag === "i" || tag === "em") props.push("<w:i/>");
-    if (tag === "u") props.push('<w:u w:val="single"/>');
-    const run = '<w:r>' + (props.length ? "<w:rPr>" + props.join("") + "</w:rPr>" : "") + '<w:t xml:space="preserve">' + inner + "</w:t></w:r>";
-    return run;
+    const next = {...props};
+    if (tag === "b" || tag === "strong") next.bold = true;
+    if (tag === "i" || tag === "em") next.italic = true;
+    if (tag === "u") next.underline = true;
+    return [...node.childNodes].map(child => wordInline(child, next)).join("");
   };
   const blockXml = (node) => {
     const tag = node.tagName.toLowerCase();
-    if (tag === "ul" || tag === "ol") return [...node.children].map(li => '<w:p><w:pPr><w:ind w:left="360"/></w:pPr><w:r><w:t>• </w:t></w:r>' + [...li.childNodes].map(wordRun).join("") + "</w:p>").join("");
-    if (tag === "li") return '<w:p><w:r><w:t>• </w:t></w:r>' + [...node.childNodes].map(wordRun).join("") + "</w:p>";
+    if (tag === "ul" || tag === "ol") return [...node.children].map(li => '<w:p><w:pPr><w:ind w:left="360"/></w:pPr><w:r><w:t>• </w:t></w:r>' + [...li.childNodes].map(n => wordInline(n)).join("") + "</w:p>").join("");
+    if (tag === "li") return '<w:p><w:r><w:t>• </w:t></w:r>' + [...node.childNodes].map(n => wordInline(n)).join("") + "</w:p>";
     const runs = [...node.childNodes].map(wordRun).join("");
     let pPr = "";
     if (/^h[1-6]$/.test(tag)) pPr = '<w:pPr><w:pStyle w:val="Heading' + tag.slice(1) + '"/></w:pPr>';
@@ -149,7 +154,7 @@
         const row = [];
         for (let c=range.s.c; c<=range.e.c; c++) {
           const cell = ws[XLSX.utils.encode_cell({r,c})];
-          row.push(!cell ? "" : cell.f ? "=" + cell.f : cell.w ?? cell.v ?? "");
+          row.push(!cell ? "" : cell.f ? "=" + cell.f : cell.v ?? cell.w ?? "");
         }
         next.push(row);
       }
