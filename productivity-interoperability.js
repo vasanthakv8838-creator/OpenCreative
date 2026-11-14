@@ -10,7 +10,7 @@
     document.head.appendChild(s);
   });
   const deps = {
-    xlsx: "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
+    xlsx: "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js",
     mammoth: "https://cdn.jsdelivr.net/npm/mammoth@1.9.0/mammoth.browser.min.js",
     jszip: "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"
   };
@@ -66,7 +66,7 @@
     const tag = node.tagName.toLowerCase();
     if (tag === "ul" || tag === "ol") return [...node.children].map(li => '<w:p><w:pPr><w:ind w:left="360"/></w:pPr><w:r><w:t>• </w:t></w:r>' + [...li.childNodes].map(n => wordInline(n)).join("") + "</w:p>").join("");
     if (tag === "li") return '<w:p><w:r><w:t>• </w:t></w:r>' + [...node.childNodes].map(n => wordInline(n)).join("") + "</w:p>";
-    const runs = [...node.childNodes].map(wordRun).join("");
+    const runs = [...node.childNodes].map(n => wordInline(n)).join("");
     let pPr = "";
     if (/^h[1-6]$/.test(tag)) pPr = '<w:pPr><w:pStyle w:val="Heading' + tag.slice(1) + '"/></w:pPr>';
     if (tag === "blockquote") pPr = '<w:pPr><w:ind w:left="480"/></w:pPr>';
