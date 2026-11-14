@@ -71,7 +71,7 @@ const parseFormula = (source,stack) => {
         case"MAX":return nums.length?Math.max(...nums):0;
         case"COUNT":return nums.length;
         case"COUNTA":return flat.filter(v=>v!==""&&v!==null&&v!==undefined).length;
-        case"IF":return args[0]?(args[0]?args[1]:args[2]??false):false;
+        case"IF":return args[0]?args[1]:args[2]??false;
         case"AND":return flat.every(Boolean);
         case"OR":return flat.some(Boolean);
         case"NOT":return !args[0];
@@ -145,12 +145,12 @@ const renderSheet = () => {
   const status=byId("sheetStatus");if(status)status.textContent=rows+" × "+cols+" cells • "+data.sheets.length+" worksheet(s) • formulas enabled";
   updateFormulaBar(selectedCell.r<rows?selectedCell.r:0,selectedCell.c<cols?selectedCell.c:0);
 };
-const switchSheet = id => {activeSheetId=id;syncSheet();selectedCell={r:0,c:0};renderSheet();};
+const switchSheet = id => {activeSheetId=id;syncSheet();selectedCell={r:0,c:0};persist();renderSheet();};
 const addWorksheet = () => {const n=data.sheets.length+1,s={id:"sheet-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),name:"Sheet"+n,cells:sheetDefaults(),styles:{}};data.sheets.push(s);switchSheet(s.id);persist();};
 const deleteWorksheet = () => {if(data.sheets.length===1){alert("A workbook must keep at least one worksheet.");return;}if(!confirm("Delete worksheet '"+activeSheet().name+"'? This cannot be undone unless you have a backup."))return;data.sheets=data.sheets.filter(s=>s.id!==activeSheetId);activeSheetId=data.sheets[0].id;syncSheet();persist();renderSheet();};
 const applyStyle = patch => {const s=activeSheet(),key=selectedCell.r+":"+selectedCell.c;s.styles[key]={...(s.styles[key]||{}),...patch};saveActive();renderSheet();};
-const sortSelectedColumn = () => {const s=activeSheet(),c=selectedCell.c,decorated=s.cells.map((row,i)=>({row,index:i,style:Object.fromEntries(Object.entries(s.styles).filter(([k])=>k.startsWith(i+":")).map(([k,v])=>[k.slice(k.indexOf(":")+1),v]))}));sortDescending=!sortDescending;decorated.sort((a,b)=>{const x=cellSort(a.row[c]),y=cellSort(b.row[c]);return (x<y?-1:x>y?1:a.index-b.index)*(sortDescending?-1:1);});s.cells=decorated.map(x=>x.row);s.styles={};decorated.forEach((item,r)=>Object.entries(item.style).forEach(([col,st])=>s.styles[r+":"+col]=st));saveActive();renderSheet();};
-const cellSort = row => {const v=String(row[selectedCell.c]??"");if(v.startsWith("="))return "";const n=Number(v);return v.trim()!==""&&Number.isFinite(n)?n:v.toLowerCase();};
+const sortSelectedColumn = () => {const s=activeSheet(),c=selectedCell.c,decorated=s.cells.map((row,i)=>({row,index:i,style:Object.fromEntries(Object.entries(s.styles).filter(([k])=>k.startsWith(i+":")).map(([k,v])=>[k.slice(k.indexOf(":")+1),v]))}));sortDescending=!sortDescending;decorated.sort((a,b)=>{const x=cellSort(a.row[c],a.index),y=cellSort(b.row[c],b.index);return (x<y?-1:x>y?1:a.index-b.index)*(sortDescending?-1:1);});s.cells=decorated.map(x=>x.row);s.styles={};decorated.forEach((item,r)=>Object.entries(item.style).forEach(([col,st])=>s.styles[r+":"+col]=st));saveActive();renderSheet();};
+const cellSort = (row,index) => {const raw=String(row[selectedCell.c]??"");const v=raw.startsWith("=")?cellValue(index,selectedCell.c):raw;const n=Number(v);return String(v).trim()!==""&&Number.isFinite(n)?n:String(v).toLowerCase();};
 const bind = () => {
   byId("addWorksheet").onclick=addWorksheet;byId("deleteWorksheet").onclick=deleteWorksheet;
   byId("renameWorksheet").onclick=()=>{const name=prompt("Worksheet name",activeSheet().name);if(name&&name.trim()){activeSheet().name=name.trim().slice(0,31);persist();renderSheet();}};
