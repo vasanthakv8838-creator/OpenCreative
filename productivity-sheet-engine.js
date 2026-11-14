@@ -97,6 +97,7 @@ const parseFormula = (source,stack) => {
   const expression=()=>{let a=sum();while(peek()&&[">","<",">=","<=","=","==","<>","!="].includes(peek().value)){const op=take().value;a=compare(a,op,sum());}return a;};
   const result=expression();if(p!==t.length)throw Error("Unexpected token");return result;
 };
+val = (r,c,stack=[]) => cellValue(r,c,stack);
 const displayValue = (r,c) => {
   const v=cellValue(r,c);if(typeof v==="number"&&Number.isFinite(v))return String(Number(v.toPrecision(12)));return String(v??"");
 };
