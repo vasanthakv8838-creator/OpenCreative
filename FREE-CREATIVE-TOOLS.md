@@ -69,7 +69,7 @@ OpenCreative is an independent creative suite. This directory lists 60 free or o
 
 ## UI, UX and web design
 
-43. [Penpot](https://penpot.app/) — interface design and prototyping (open source; also listed in vector design).
+43. [Pencil Project](https://pencil.evolus.vn/) — desktop prototyping and UI mockups (open source).
 44. [Figma Starter](https://www.figma.com/) — collaborative UI design (limited free tier; proprietary).
 45. [ diagrams.net ](https://www.diagrams.net/) — diagrams and flowcharts (free; open-source client).
 46. [Excalidraw](https://excalidraw.com/) — hand-drawn-style diagrams (open source).
@@ -87,10 +87,10 @@ OpenCreative is an independent creative suite. This directory lists 60 free or o
 
 ## Color, image utilities and creative workflow
 
-55. [Inkscape Color tools](https://inkscape.org/) — color and vector workflow utilities (open source).
-56. [Krita](https://krita.org/) — brush engines, painting and texture work (open source; also listed above).
+55. [Coolors](https://coolors.co/) — color palette generation (free tier; check current terms).
+56. [MyPaint](https://mypaint.org/) — digital painting focused on natural brushes (open source).
 57. [ImageMagick](https://imagemagick.org/) — command-line image conversion and processing (open source).
-58. [darktable](https://www.darktable.org/) — photo color grading and workflow (open source; also listed above).
+58. [PhotoDemon](https://photodemon.org/) — portable photo editor for Windows (open source).
 59. [OBS Studio](https://obsproject.com/) — screen capture and live production (open source).
 60. [ShareX](https://getsharex.com/) — screen capture and workflow automation (open source; Windows).
 
