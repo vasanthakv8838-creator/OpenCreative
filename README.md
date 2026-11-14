@@ -94,3 +94,18 @@ OpenCreative grows through feedback and contributions. You do not need to be an 
 - **Discuss the roadmap:** Visit [GitHub Discussions](../../discussions) when enabled.
 
 Good first contributions include improving documentation, testing a tool in another browser, reporting a reproducible bug, and suggesting a focused improvement.
+
+
+## Productivity Workspace
+
+Open `productivity.html` or choose **Productivity Workspace** from the home page to use the local-first productivity apps:
+
+- **Writer:** rich-text editing with HTML and TXT export.
+- **Sheets:** editable grid, basic arithmetic and SUM/AVERAGE/MIN/MAX formulas, CSV import/export.
+- **Tasks:** add, complete, due-date and delete tasks.
+- **Notes:** create, edit, search and delete notes.
+- **Calendar:** create local events and export an ICS calendar.
+- **Forms:** create a one-question form, collect local responses and export responses as CSV.
+- **Backup:** export or import a JSON backup of the productivity workspace.
+
+Productivity data is stored in the current browser's local storage. It is not synced to a server. Export backups regularly; clearing browser data can erase local content. This release does not include accounts, cloud sync, realtime collaboration, hosted email/meetings, or full DOCX/XLSX/PPTX compatibility. Use HTTPS or localhost for best browser support.
