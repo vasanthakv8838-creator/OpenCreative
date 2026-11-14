@@ -28,7 +28,7 @@ No account or subscription is required. Most processing in this MVP happens loca
 ## Project files
 
 - `index.html` — complete browser app
-- `package.json` — minimal project metadata and optional local server command
+- `productivity.html` and `productivity-interoperability.js` — local-first productivity suite and Office format helpers
 - `LICENSE` — MIT License
 - `.gitignore` — common local development exclusions
 - `OpenCreative-v0.1.0.zip` — packaged v0.1.0 source bundle
@@ -109,3 +109,12 @@ Open `productivity.html` or choose **Productivity Workspace** from the home page
 - **Backup:** export or import a JSON backup of the productivity workspace.
 
 Productivity data is stored in the current browser's local storage. It is not synced to a server. Export backups regularly; clearing browser data can erase local content. This release does not include accounts, cloud sync, realtime collaboration, hosted email/meetings, or full DOCX/XLSX/PPTX compatibility. Use HTTPS or localhost for best browser support.
+
+### Office document interoperability
+
+- **Writer:** import `.docx` files in the browser and export Writer content as `.docx`, HTML, or TXT.
+- **Sheets:** import and export `.xlsx` workbooks, preserving cell values and common formulas where supported; CSV remains available.
+- DOCX import uses Mammoth.js; DOCX packaging uses JSZip; XLSX processing uses SheetJS Community Edition. These browser libraries load on demand from their public CDNs.
+- The selected document/workbook is processed in the browser. OpenCreative does not upload its contents to an OpenCreative server. Loading the libraries does make a request to the relevant CDN.
+- **Compatibility limits:** this is not a full Microsoft Office renderer. DOCX import/export focuses on text, paragraphs, headings, basic emphasis and lists; images and complex layouts may not be preserved. XLSX import currently reads the first worksheet; advanced Excel features, macros, external links and exact formatting fidelity are not guaranteed. Formula support depends on the browser library and existing lightweight grid.
+- If a CDN is unavailable or the device is offline, existing local Writer/Sheets features continue to work; Office import/export will be unavailable until the library can load.
