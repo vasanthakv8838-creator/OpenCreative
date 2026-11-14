@@ -126,7 +126,7 @@
       if (result.messages && result.messages.length) alert("Imported with notes: some Word formatting or unsupported content may not be preserved.");
     } catch (e) { alert("DOCX import failed: " + e.message + ". Check your internet connection and try again."); }
   };
-  const toAoA = () => data.sheet.map((row, r) => row.map((value, c) => {
+  const toAoA = (cells) => cells.map(row => row.map(value => {
     const raw = String(value ?? "");
     if (raw.startsWith("=")) return {f:raw.slice(1)};
     return raw;
@@ -134,35 +134,42 @@
   const exportXlsx = async () => {
     try {
       await ensure(["xlsx"]);
-      const ws = XLSX.utils.aoa_to_sheet(toAoA());
-      const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+      const sheets = window.OpenCreativeSheets ? window.OpenCreativeSheets.getWorkbook() : [{name:"Sheet1",cells:data.sheet}];
+      const wb = XLSX.utils.book_new();
+      sheets.forEach((sheet, index) => {
+        const ws = XLSX.utils.aoa_to_sheet(toAoA(sheet.cells));
+        const name = String(sheet.name || ("Sheet"+(index+1))).slice(0,31) || ("Sheet"+(index+1));
+        XLSX.utils.book_append_sheet(wb, ws, name);
+      });
       const bytes = XLSX.write(wb, {bookType:"xlsx", type:"array", cellFormula:true});
-      downloadBlob(new Blob([bytes], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}), "opencreative-sheet.xlsx");
-      status("XLSX exported");
+      downloadBlob(new Blob([bytes], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}), "opencreative-workbook.xlsx");
+      status("Exported " + sheets.length + " worksheet(s) to XLSX");
     } catch (e) { status("XLSX export unavailable"); alert("XLSX export failed: " + e.message); }
   };
   const importXlsx = async (file) => {
     try {
       await ensure(["xlsx"]);
-      const wb = XLSX.read(await file.arrayBuffer(), {type:"array", cellFormula:true});
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      if (!ws) throw new Error("The workbook has no visible worksheet.");
-      const ref = ws["!ref"] || "A1";
-      const range = XLSX.utils.decode_range(ref);
-      const next = [];
-      for (let r=range.s.r; r<=range.e.r; r++) {
-        const row = [];
-        for (let c=range.s.c; c<=range.e.c; c++) {
-          const cell = ws[XLSX.utils.encode_cell({r,c})];
-          row.push(!cell ? "" : cell.f ? "=" + cell.f : cell.v ?? cell.w ?? "");
+      const wb = XLSX.read(await file.arrayBuffer(), {type:"array", cellFormula:true, cellStyles:true});
+      if (!wb.SheetNames.length) throw new Error("The workbook has no worksheets.");
+      const imported = wb.SheetNames.map(name => {
+        const ws = wb.Sheets[name];
+        const ref = ws["!ref"] || "A1", range = XLSX.utils.decode_range(ref), cells = [];
+        for (let r=range.s.r; r<=range.e.r; r++) {
+          const row = [];
+          for (let c=range.s.c; c<=range.e.c; c++) {
+            const cell = ws[XLSX.utils.encode_cell({r,c})];
+            row.push(!cell ? "" : cell.f ? "=" + cell.f : cell.v ?? cell.w ?? "");
+          }
+          cells.push(row);
         }
-        next.push(row);
+        return {name, cells};
+      });
+      if (window.OpenCreativeSheets) window.OpenCreativeSheets.setWorkbook(imported);
+      else {
+        data.sheet = imported[0].cells; rows = data.sheet.length; cols = Math.max(1,...data.sheet.map(r=>r.length)); persist(); renderSheet();
       }
-      if (!next.length) throw new Error("The workbook is empty.");
-      data.sheet = next; rows = next.length; cols = Math.max(1, ...next.map(r => r.length));
-      data.sheet.forEach(r => { while (r.length < cols) r.push(""); });
-      persist(); renderSheet(); status("Imported " + file.name);
-    } catch (e) { alert("XLSX import failed: " + e.message + ". The current sheet was not changed."); }
+      status("Imported " + imported.length + " worksheet(s) from " + file.name);
+    } catch (e) { alert("XLSX import failed: " + e.message + ". The current workbook was not changed."); }
   };
   const init = () => {
     const docToolbar = document.querySelector("#docs .toolbar");
