@@ -1,84 +1,117 @@
-# Microsoft 365 & Office App Directory
+# OpenCreative Office Suite — Clean-Room Compatibility Blueprint
 
-OpenCreative directory of Microsoft productivity apps with links to Microsoft's official product pages or launch portals.
+This file replaces the Microsoft 365 link directory with an implementation plan for an **independent productivity suite** inside OpenCreative.
 
-> **Important:** OpenCreative does not copy, redistribute, crack, or recreate Microsoft's proprietary applications. These links open Microsoft's own services. Availability, features, storage, and editing rights depend on the app, region, account type, and Microsoft plan. Some desktop apps require a paid license or an eligible school/work account. This is a directory, not an embedded or hosted copy of Microsoft 365.
+## Important scope and naming
 
-## Core Office apps
+OpenCreative will build its own apps and backend from original code and original interface design. It will not decompile Microsoft binaries, copy Microsoft source code, reproduce protected branding/assets, bypass Microsoft subscriptions, or impersonate Microsoft services.
 
-| App | What it does | Official link |
+The goal is functional interoperability: create, edit, import, and export common office documents using published standards and documented APIs where permitted. This is **not** Microsoft 365, and it must not be marketed as an official Microsoft product or a complete clone.
+
+## Product suite
+
+Use original OpenCreative names and visual identity for each module.
+
+| OpenCreative module | Office-style capability | Initial feature scope |
 |---|---|---|
-| Word | Documents and writing | https://www.microsoft.com/microsoft-365/word |
-| Excel | Spreadsheets and data analysis | https://www.microsoft.com/microsoft-365/excel |
-| PowerPoint | Presentations | https://www.microsoft.com/microsoft-365/powerpoint |
-| Outlook | Email and calendar | https://www.microsoft.com/microsoft-365/outlook |
-| OneNote | Digital notebooks | https://www.microsoft.com/microsoft-365/onenote |
-| Access | Desktop database creation (Windows) | https://www.microsoft.com/microsoft-365/access |
-| Microsoft 365 apps portal | Launch available Office apps | https://www.microsoft365.com/ |
+| OpenCreative Writer | Word-style word processing | Rich text, headings, lists, tables, page layout, images, comments, print/PDF export |
+| OpenCreative Sheets | Excel-style spreadsheets | Grid editor, formulas, cell formats, sorting/filtering, charts, CSV import/export |
+| OpenCreative Slides | PowerPoint-style presentations | Slides, layouts, text/images/shapes, themes, presenter view, PDF export |
+| OpenCreative Mail | Outlook-style email client | Connect user-authorized mail accounts, folders, compose, search, attachments |
+| OpenCreative Calendar | Calendar and scheduling | Events, reminders, recurring events, invitations, timezone support |
+| OpenCreative Notes | OneNote-style notebooks | Notebooks, sections, pages, rich notes, tags, search |
+| OpenCreative Drive | OneDrive-style file workspace | Upload/download, folders, sharing permissions, version history |
+| OpenCreative Chat | Teams-style collaboration | Workspaces, channels, messages, file links, meetings integration |
+| OpenCreative Sites | SharePoint-style team spaces | Pages, document libraries, lists, access controls |
+| OpenCreative Tasks | To Do / Planner-style planning | Personal tasks, team boards, due dates, assignments |
+| OpenCreative Forms | Forms-style surveys | Form builder, question types, validation, response summaries |
+| OpenCreative Whiteboard | Collaborative canvas | Shapes, sticky notes, connectors, freehand drawing |
+| OpenCreative Diagrams | Visio-style diagrams | Flowcharts, connectors, templates, SVG/PDF export |
+| OpenCreative Reports | Power BI-style reporting | Data import, charts, filters, dashboards, shareable reports |
+| OpenCreative Automations | Power Automate-style workflows | Triggers, actions, conditions, run history, user-approved integrations |
+| OpenCreative Database | Access-style relational data tool | Tables, relationships, queries, forms, CSV import/export |
+| OpenCreative Publisher | Desktop publishing | Page templates, typography, image placement, PDF export |
+| OpenCreative Video | Clipchamp-style editor | Timeline, trims, transitions, titles, audio, video export |
+| OpenCreative Design | Designer-style graphics | Templates, shapes, text, image editing, export |
+| OpenCreative Admin | Admin and governance console | Users, roles, audit trail, storage quotas, policy settings |
 
-## Communication and collaboration
+## Interoperability and file formats
 
-| App | What it does | Official link |
-|---|---|---|
-| Microsoft Teams | Chat, meetings, calls, collaboration | https://www.microsoft.com/microsoft-teams |
-| SharePoint | Team sites and content management | https://www.microsoft.com/microsoft-365/sharepoint/collaboration |
-| OneDrive | Cloud file storage and sharing | https://www.microsoft.com/microsoft-365/onedrive/online-cloud-storage |
-| Microsoft Loop | Shared workspaces and components | https://www.microsoft.com/microsoft-loop |
-| Microsoft Whiteboard | Collaborative digital whiteboard | https://www.microsoft.com/microsoft-365/microsoft-whiteboard |
-| Microsoft Stream | Video sharing for organizations | https://www.microsoft.com/microsoft-365/microsoft-stream |
-| Viva Engage | Organization-wide communities | https://www.microsoft.com/microsoft-viva/engage |
-| Microsoft Bookings | Appointment scheduling | https://www.microsoft.com/microsoft-365/business/scheduling-and-booking-app |
+Prioritize open, documented formats. Use libraries that support the relevant standards; do not claim full fidelity until compatibility tests prove it.
 
-## Planning, tasks, and forms
+| Module | Target formats |
+|---|---|
+| Writer | DOCX import/export where supported; ODT, RTF, TXT, PDF |
+| Sheets | XLSX import/export where supported; ODS, CSV, TSV |
+| Slides | PPTX import/export where supported; ODP, PDF |
+| Mail | MIME / EML; connect through documented IMAP/SMTP or provider APIs with explicit user authorization |
+| Calendar | iCalendar (.ics); CalDAV where supported |
+| Notes | Markdown, HTML, JSON export |
+| Diagrams | SVG, PNG, PDF, JSON project format |
+| Database | CSV, JSON, SQLite |
 
-| App | What it does | Official link |
-|---|---|---|
-| Microsoft To Do | Personal task lists | https://www.microsoft.com/microsoft-365/microsoft-to-do-list-app |
-| Microsoft Planner | Team plans and task management | https://www.microsoft.com/microsoft-365/business/task-management-software |
-| Microsoft Lists | Track information and workflows | https://www.microsoft.com/microsoft-365/microsoft-lists |
-| Microsoft Forms | Surveys, polls, and quizzes | https://www.microsoft.com/microsoft-365/online-surveys-polls-quizzes |
-| Microsoft Sway | Interactive presentations and reports | https://sway.cloud.microsoft/ |
+Open XML file extensions include DOCX, XLSX, and PPTX. Support must be implemented and tested per feature; macros, embedded objects, advanced formulas, animations, and proprietary extensions may not be supported. Treat macro-enabled files as untrusted and never execute embedded code.
 
-## Design, video, and creative apps
+## Technical architecture
 
-| App | What it does | Official link |
-|---|---|---|
-| Microsoft Designer | AI-assisted graphic design | https://designer.microsoft.com/ |
-| Clipchamp | Video editing | https://clipchamp.com/ |
-| Microsoft Photos | Photo viewing and editing in Windows | https://www.microsoft.com/windows/photos |
-| Visio | Diagrams and flowcharts | https://www.microsoft.com/microsoft-365/visio/flowchart-software |
-| Sway | Interactive stories and reports | https://sway.cloud.microsoft/ |
+Build a modular web application with a shared shell and independently deployable services only where needed.
 
-## Data, automation, and business apps
+- **Frontend:** responsive TypeScript application; accessible navigation; app launcher; command palette; keyboard shortcuts; mobile-friendly layouts.
+- **Backend:** documented REST API; modular services for documents, files, identity, collaboration, notifications, and audit events.
+- **Database:** PostgreSQL for users, metadata, permissions, comments, tasks, and collaboration state.
+- **File storage:** S3-compatible object storage with signed uploads/downloads, versioning, and quotas.
+- **Realtime:** WebSocket collaboration with document-level authorization and conflict handling.
+- **Search:** indexed metadata and document text with permission-aware results.
+- **Authentication:** secure sessions or OAuth/OIDC; no collection or storage of Microsoft passwords.
+- **Integrations:** optional Microsoft Graph or other provider APIs only through official documented authorization flows and user consent. Keep provider tokens encrypted and revocable.
+- **Deployment:** environment-based configuration, HTTPS, backups, migrations, logging, rate limits, and secret management.
 
-| App | What it does | Official link |
-|---|---|---|
-| Power BI | Business intelligence and dashboards | https://www.microsoft.com/power-platform/products/power-bi |
-| Power Automate | Workflow automation | https://www.microsoft.com/power-platform/products/power-automate |
-| Power Apps | Low-code business apps | https://www.microsoft.com/power-platform/products/power-apps |
-| Power Pages | Low-code business websites | https://www.microsoft.com/power-platform/products/power-pages |
-| Dynamics 365 | Business CRM and ERP apps | https://www.microsoft.com/dynamics-365 |
-| Microsoft Purview | Data governance and compliance | https://www.microsoft.com/security/business/microsoft-purview |
+## Security and privacy requirements
 
-## Security and personal services
+1. Enforce authorization on every server-side read and write.
+2. Validate uploads, enforce size limits, scan files, and serve downloads safely.
+3. Escape/sanitize rendered content and protect against XSS, CSRF, SSRF, and injection.
+4. Encrypt secrets and provider tokens; never put credentials in source control.
+5. Provide account export and deletion workflows.
+6. Keep audit logs for sharing, admin actions, and access changes.
+7. Do not execute VBA, macros, scripts, or embedded file code.
+8. Clearly disclose third-party services, storage limits, and any costs.
 
-| App | What it does | Official link |
-|---|---|---|
-| Microsoft Defender | Security and device protection | https://www.microsoft.com/microsoft-365/microsoft-defender-for-individuals |
-| Microsoft Family Safety | Family screen-time and safety tools | https://www.microsoft.com/microsoft-365/family-safety |
-| Microsoft 365 Admin Center | Manage an eligible organization subscription | https://admin.microsoft.com/ |
+## Phased build plan
 
-## Access notes
+### Phase 1 — Working office core
+- Shared app shell, account/session handling, file workspace.
+- Writer with rich-text editing and DOCX/ODT/PDF export/import where supported.
+- Sheets with grid editing, basic formulas, CSV/XLSX import/export where supported.
+- Slides with basic slide editing and PDF/PPTX export/import where supported.
+- Save/open flows, autosave, responsive UI, tests.
 
-- Start at [Microsoft 365](https://www.microsoft365.com/) and sign in with your Microsoft account to see which apps are available.
-- Microsoft offers free web versions of Word, Excel, and PowerPoint with a Microsoft account; advanced features and desktop versions may require a subscription.
-- Work or school accounts may expose additional organization-licensed apps.
-- OpenCreative links users to the official Microsoft services. It does not bypass subscriptions, sign-in, regional restrictions, or licensing.
-- Product names, availability, and URLs can change. Check Microsoft's official pages for current details.
+### Phase 2 — Personal productivity
+- Mail connection through authorized provider APIs.
+- Calendar with ICS import/export and reminders.
+- Notes, tasks, forms, diagrams, and whiteboard.
 
-## OpenCreative integration roadmap
+### Phase 3 — Team collaboration
+- Shared folders, permissions, comments, presence, collaborative editing.
+- Team chat, sites, shared task boards, and notifications.
 
-1. Add this directory as a searchable category in the OpenCreative interface.
-2. Add app cards with descriptions and official launch links.
-3. Display whether each app is web-based, desktop-only, or account/plan dependent.
-4. Add open-source alternatives alongside Microsoft apps, without misrepresenting them as Microsoft products.
+### Phase 4 — Business and advanced tools
+- Reports, automation workflows, relational database UI, admin console.
+- SSO, audit exports, retention policies, organization controls.
+
+## Definition of done
+
+A module is not complete merely because its card or button exists. It must have a working user flow, persistent storage, validation and error states, authorization checks, automated tests, and documented limitations. File-format compatibility must be tested against real sample files and reported honestly.
+
+## Technical references
+
+- [Microsoft Open XML and Office standards support](https://learn.microsoft.com/openspecs/office_standards/)
+- [Microsoft Office file format reference](https://learn.microsoft.com/office/compatibility/office-file-format-reference)
+- [About the Open XML SDK](https://learn.microsoft.com/en-us/office/open-xml/about-the-open-xml-sdk)
+- [Microsoft Graph Excel API overview](https://learn.microsoft.com/en-us/graph/excel-concept-overview)
+
+These references describe formats and documented integration surfaces. They do not grant permission to copy Microsoft products or branding. Check the license and terms of every library and API before using it.
+
+## Current implementation status
+
+**Blueprint only.** This document does not mean the modules, backend, authentication, cloud storage, collaboration, or file conversion engines have already been implemented. Build and test them incrementally, preserving existing OpenCreative files and functionality.
