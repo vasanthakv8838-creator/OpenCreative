@@ -28,7 +28,8 @@ No account or subscription is required. Most processing in this MVP happens loca
 ## Project files
 
 - `index.html` — complete browser app
-- `productivity.html` and `productivity-interoperability.js` — local-first productivity suite and Office format helpers
+- `productivity.html`, `productivity-sheet-engine.js` and `productivity-interoperability.js` — local-first productivity suite and Office format helpers
+- `portal.html` and `portal-enhancements.js` — independent Yahoo-inspired portal, local drafts/contacts, calendar export and backup tools
 - `LICENSE` — MIT License
 - `.gitignore` — common local development exclusions
 - `OpenCreative-v0.1.0.zip` — packaged v0.1.0 source bundle
@@ -116,10 +117,14 @@ Productivity data is stored in the current browser's local storage. It is not sy
 - **Sheets:** import and export `.xlsx` workbooks, preserving cell values and common formulas where supported; CSV remains available.
 - DOCX import uses Mammoth.js; DOCX packaging uses JSZip; XLSX processing uses SheetJS Community Edition. These browser libraries load on demand from their public CDNs.
 - The selected document/workbook is processed in the browser. OpenCreative does not upload its contents to an OpenCreative server. Loading the libraries does make a request to the relevant CDN.
-- **Compatibility limits:** this is not a full Microsoft Office renderer. DOCX import/export focuses on text, paragraphs, headings, basic emphasis and lists; images and complex layouts may not be preserved. XLSX import currently reads the first worksheet; advanced Excel features, macros, external links and exact formatting fidelity are not guaranteed. Formula calculations are evaluated by OpenCreative's local formula engine; supported functions include SUM, AVERAGE, MIN, MAX, COUNT, COUNTA, IF, AND, OR, NOT, ROUND, ABS, SQRT, POWER, CONCAT, LEN, UPPER and LOWER, plus cell references, ranges and arithmetic/comparison operators. XLSX formula expressions are imported/exported, but recalculation is performed by OpenCreative when opened in the app or by the spreadsheet app that opens the workbook.
+- **Compatibility limits:** this is not a full Microsoft Office renderer. DOCX import/export focuses on text, paragraphs, headings, basic emphasis and lists; images and complex layouts may not be preserved. XLSX import/export supports multiple worksheets; advanced Excel features, macros, external links and exact formatting fidelity are not guaranteed. Formula calculations are evaluated by OpenCreative's local formula engine; supported functions include SUM, AVERAGE, MIN, MAX, COUNT, COUNTA, IF, AND, OR, NOT, ROUND, ABS, SQRT, POWER, CONCAT, LEN, UPPER and LOWER, plus cell references, ranges and arithmetic/comparison operators. XLSX formula expressions are imported/exported, but recalculation is performed by OpenCreative when opened in the app or by the spreadsheet app that opens the workbook.
 - If a CDN is unavailable or the device is offline, existing local Writer/Sheets features continue to work; Office import/export will be unavailable until the library can load.
 
 ### Spreadsheet engine
 
 The Sheets workspace supports multiple named worksheets, adding/renaming/deleting sheets, a formula bar, cell bold/italic, text and fill colors, alignment, sorting by the selected column, and live row filtering. The formula parser supports cell references, ranges, arithmetic and comparisons, plus SUM, AVERAGE, MIN, MAX, COUNT, COUNTA, IF, AND, OR, NOT, ROUND, ABS, SQRT, POWER, CONCAT, LEN, UPPER and LOWER. XLSX import/export includes all worksheets and formula expressions. Formatting is stored in OpenCreative's local workspace; exact Excel style fidelity, charts, pivot tables, macros, external workbook links and advanced Excel functions are not supported. XLSX import/export requires the SheetJS library to load from its public CDN.
-\n\n### All-in-One Portal\n\nOpen `portal.html` for an independent Yahoo-inspired dashboard with news discovery links, web search, live weather lookup via Open-Meteo, finance watchlist shortcuts, mail-provider links, and local calendar events and notes. It does not copy Yahoo's proprietary code or host email, provide brokerage quotes, or connect to personal accounts. Weather requires an internet connection; notes, events and watchlist are stored in this browser's localStorage.\n
+
+
+### All-in-One Portal
+
+Open `portal.html` for an independent Yahoo-inspired dashboard with news discovery links, web search, live weather lookup via Open-Meteo, finance watchlist shortcuts, mail-provider links, local calendar events and notes, a local contacts book, and an email draft desk. Drafts can be saved on this device, opened in the configured email app with a `mailto:` link, or downloaded as `.eml`; OpenCreative does not access mailboxes or send messages. Calendar events can be exported as `.ics`, and portal data can be exported or merged from a JSON backup. It does not copy Yahoo's proprietary code, provide brokerage quotes, or connect to personal accounts. Weather requires an internet connection; personal portal data stays in this browser's localStorage.
