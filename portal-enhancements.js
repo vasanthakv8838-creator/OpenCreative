@@ -117,9 +117,9 @@ if(backupFile)backupFile.addEventListener("change",async()=>{
     state.watchlist=mergeBy(state.watchlist,incoming.watchlist.filter(x=>typeof x==="string"),x=>String(x).toUpperCase());
     if(Array.isArray(incoming.drafts))state.drafts=mergeBy(state.drafts,incoming.drafts.filter(x=>x&&typeof x==="object"),x=>String(x.id||"")+String(x.to||"")+String(x.subject||"")+String(x.body||""));
     if(Array.isArray(incoming.contacts))state.contacts=mergeBy(state.contacts,incoming.contacts.filter(x=>x&&typeof x==="object"),x=>String(x.email||"").toLowerCase());
-    if(Array.isArray(incoming.newsFeeds))state.newsFeeds=mergeBy(Array.isArray(state.newsFeeds)?state.newsFeeds:[],incoming.newsFeeds.filter(x=>x&&typeof x.url==="string"),x=>String(x.url));
-    if(Array.isArray(incoming.newsCache))state.newsCache=mergeBy(Array.isArray(state.newsCache)?state.newsCache:[],incoming.newsCache.filter(x=>x&&typeof x.feedUrl==="string"),x=>String(x.feedUrl));
-    if(Array.isArray(incoming.savedArticles))state.savedArticles=mergeBy(Array.isArray(state.savedArticles)?state.savedArticles:[],incoming.savedArticles.filter(x=>x&&typeof x.id==="string"),x=>String(x.id));
+    if(Array.isArray(incoming.newsFeeds))state.newsFeeds=mergeBy(Array.isArray(state.newsFeeds)?state.newsFeeds:[],incoming.newsFeeds.filter(x=>x&&typeof x.url==="string"),x=>String(x.url)).slice(0,20);
+    if(Array.isArray(incoming.newsCache))state.newsCache=mergeBy(Array.isArray(state.newsCache)?state.newsCache:[],incoming.newsCache.filter(x=>x&&typeof x.feedUrl==="string"),x=>String(x.feedUrl)).slice(0,20);
+    if(Array.isArray(incoming.savedArticles))state.savedArticles=mergeBy(Array.isArray(state.savedArticles)?state.savedArticles:[],incoming.savedArticles.filter(x=>x&&typeof x.id==="string"),x=>String(x.id)).slice(0,200);
     save();renderEvents();renderNotes();renderWatch();renderDrafts();renderContacts();window.dispatchEvent(new Event("opencreative:portal-data-imported"));announce("Backup merged. Existing local items were preserved.");
   }catch(error){announce("Import failed: "+error.message)}
   finally{backupFile.value=""}
