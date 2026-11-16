@@ -98,7 +98,7 @@ if(el("exportCalendar"))el("exportCalendar").addEventListener("click",()=>{
   announce("Calendar exported as an .ics file.");
 });
 const backupButton=el("exportPortalBackup"),importButton=el("importPortalBackup"),backupFile=el("portalBackupFile");
-if(backupButton)backupButton.addEventListener("click",()=>download("opencreative-portal-backup.json",JSON.stringify({...state,schemaVersion:2,exportedAt:new Date().toISOString()},null,2),"application/json"));
+if(backupButton)backupButton.addEventListener("click",()=>download("opencreative-portal-backup.json",JSON.stringify({...state,schemaVersion:3,exportedAt:new Date().toISOString()},null,2),"application/json"));
 const mergeBy=(current,incoming,key)=>{
   const result=current.slice(),seen=new Set(current.map(key));
   incoming.forEach(item=>{const k=key(item);if(!seen.has(k)){seen.add(k);result.push(item)}});
@@ -117,7 +117,10 @@ if(backupFile)backupFile.addEventListener("change",async()=>{
     state.watchlist=mergeBy(state.watchlist,incoming.watchlist.filter(x=>typeof x==="string"),x=>String(x).toUpperCase());
     if(Array.isArray(incoming.drafts))state.drafts=mergeBy(state.drafts,incoming.drafts.filter(x=>x&&typeof x==="object"),x=>String(x.id||"")+String(x.to||"")+String(x.subject||"")+String(x.body||""));
     if(Array.isArray(incoming.contacts))state.contacts=mergeBy(state.contacts,incoming.contacts.filter(x=>x&&typeof x==="object"),x=>String(x.email||"").toLowerCase());
-    save();renderEvents();renderNotes();renderWatch();renderDrafts();renderContacts();announce("Backup merged. Existing local items were preserved.");
+    if(Array.isArray(incoming.newsFeeds))state.newsFeeds=mergeBy(Array.isArray(state.newsFeeds)?state.newsFeeds:[],incoming.newsFeeds.filter(x=>x&&typeof x.url==="string"),x=>String(x.url));
+    if(Array.isArray(incoming.newsCache))state.newsCache=mergeBy(Array.isArray(state.newsCache)?state.newsCache:[],incoming.newsCache.filter(x=>x&&typeof x.feedUrl==="string"),x=>String(x.feedUrl));
+    if(Array.isArray(incoming.savedArticles))state.savedArticles=mergeBy(Array.isArray(state.savedArticles)?state.savedArticles:[],incoming.savedArticles.filter(x=>x&&typeof x.id==="string"),x=>String(x.id));
+    save();renderEvents();renderNotes();renderWatch();renderDrafts();renderContacts();window.dispatchEvent(new Event("opencreative:portal-data-imported"));announce("Backup merged. Existing local items were preserved.");
   }catch(error){announce("Import failed: "+error.message)}
   finally{backupFile.value=""}
 });
