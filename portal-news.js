@@ -14,9 +14,9 @@ const safeFeedUrl = value => {
 const hash = value => { let h=2166136261; for(let i=0;i<value.length;i++){h^=value.charCodeAt(i);h=Math.imul(h,16777619);} return (h>>>0).toString(36); };
 const escapeXml = value => String(value||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");
 const download = (name, content, type) => { const blob=new Blob([content],{type:type}), url=URL.createObjectURL(blob), a=document.createElement("a"); a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200); };
-state.newsFeeds=Array.isArray(state.newsFeeds)?state.newsFeeds.filter(x=>x&&typeof x.url==="string").slice(0,maxFeeds):[];
-state.newsCache=Array.isArray(state.newsCache)?state.newsCache.filter(x=>x&&typeof x.feedUrl==="string").slice(0,maxFeeds):[];
-state.savedArticles=Array.isArray(state.savedArticles)?state.savedArticles.filter(x=>x&&typeof x.id==="string").slice(0,200):[];
+state.newsFeeds=Array.isArray(state.newsFeeds)?state.newsFeeds.filter(x=>{if(!x||typeof x.url!=="string")return false;try{return safeFeedUrl(x.url)===x.url;}catch{return false;}}).slice(0,maxFeeds):[];
+state.newsCache=Array.isArray(state.newsCache)?state.newsCache.filter(x=>x&&typeof x.feedUrl==="string"&&Array.isArray(x.items)&&state.newsFeeds.some(feed=>feed.url===x.feedUrl)).slice(0,maxFeeds):[];
+state.savedArticles=Array.isArray(state.savedArticles)?state.savedArticles.filter(x=>x&&typeof x.id==="string"&&typeof x.title==="string").slice(0,200):[];
 const persist=()=>{try{save();return true;}catch(error){status("Could not save reader data. Export your portal backup or free browser storage.");return false;}};
 const makeButton=(label,handler,disabled=false)=>{const b=document.createElement("button");b.type="button";b.textContent=label;b.disabled=disabled;b.addEventListener("click",handler);return b;};
 const makeEmpty=message=>{const p=document.createElement("p");p.className="news-empty";p.textContent=message;return p;};
@@ -60,6 +60,7 @@ const refreshFeed=async feed=>{
   try{
     const response=await fetch(feed.url,{method:"GET",mode:"cors",credentials:"omit",redirect:"follow",referrerPolicy:"no-referrer",cache:"no-store",headers:{Accept:"application/atom+xml, application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.5"},signal:controller.signal});
     if(!response.ok)throw new Error("Publisher returned HTTP "+response.status+".");
+    if(response.url&&new URL(response.url).protocol!=="https:")throw new Error("Feed redirected to a non-HTTPS URL.");
     const parsed=parseFeed(await readResponse(response),feed.url),entry={feedUrl:feed.url,feedTitle:parsed.title,fetchedAt:new Date().toISOString(),items:parsed.items};
     const index=state.newsCache.findIndex(x=>x.feedUrl===feed.url);if(index>=0)state.newsCache[index]=entry;else state.newsCache.push(entry);
     feed.title=parsed.title;feed.lastFetched=entry.fetchedAt;feed.error="";persist();return parsed.items.length;
@@ -86,7 +87,8 @@ const storyCard=(item,saved)=>{
   const card=document.createElement("article");card.className="article-card";
   const meta=document.createElement("div");meta.className="article-meta";meta.textContent=(item.feedTitle||"Feed")+(item.date?" · "+item.date:"");
   const heading=document.createElement("h3");
-  if(item.link){const link=document.createElement("a");link.href=item.link;link.target="_blank";link.rel="noopener noreferrer";link.textContent=item.title;heading.append(link);}else heading.textContent=item.title;
+  const articleUrl=safeLink(item.link,"https://invalid.example/");
+  if(articleUrl){const link=document.createElement("a");link.href=articleUrl;link.target="_blank";link.rel="noopener noreferrer";link.textContent=item.title;heading.append(link);}else heading.textContent=item.title;
   card.append(meta,heading);
   if(item.excerpt){const p=document.createElement("p");p.textContent=item.excerpt;card.append(p);}
   const actions=document.createElement("div");actions.className="article-actions";
@@ -146,5 +148,6 @@ if(byId("opmlFile"))byId("opmlFile").addEventListener("change",async()=>{
   }catch(error){status("OPML import failed: "+error.message);}
   finally{byId("opmlFile").value="";}
 });
+window.addEventListener("opencreative:portal-data-imported",()=>{renderFeeds();renderArticles();});
 renderFeeds();renderArticles();
 })();
