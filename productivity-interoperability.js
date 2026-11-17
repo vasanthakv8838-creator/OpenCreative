@@ -31,6 +31,44 @@
     input.addEventListener("change", handler); return input;
   };
   const safeName = (s, ext) => (String(s || "opencreative").replace(/[^\w-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "opencreative") + ext;
+  const MAX_DOCX_BYTES = 15 * 1024 * 1024;
+  const MAX_XLSX_BYTES = 25 * 1024 * 1024;
+  const MAX_XLSX_CELLS = 250000;
+  const MAX_XLSX_ROWS = 5000;
+  const MAX_XLSX_COLS = 256;
+  const MAX_XLSX_SHEETS = 50;
+  const checkFileSize = (file, limit, label) => {
+    if (file && Number(file.size) > limit) throw new Error(label + " exceeds the " + Math.round(limit / 1024 / 1024) + " MB import limit.");
+  };
+  const xlsxColor = value => {
+    const raw = typeof value === "string" ? value : value && (value.rgb || value.argb);
+    if (!raw) return "";
+    let hex = String(raw).replace(/^#/, "").toUpperCase();
+    if (/^[0-9A-F]{8}$/.test(hex)) hex = hex.slice(-6);
+    return /^[0-9A-F]{6}$/.test(hex) ? "#" + hex : "";
+  };
+  const importedStyle = cell => {
+    const source = cell && cell.s || {}, style = {};
+    if (source.font && source.font.bold) style.bold = true;
+    if (source.font && source.font.italic) style.italic = true;
+    const color = xlsxColor(source.font && source.font.color);
+    const fill = xlsxColor(source.fill && source.fill.fgColor) || xlsxColor(source.fill && source.fill.bgColor);
+    const align = source.alignment && source.alignment.horizontal;
+    if (color) style.color = color;
+    if (fill) style.background = fill;
+    if (["left", "center", "right"].includes(align)) style.align = align;
+    return style;
+  };
+  const safeSheetName = (value, index, used) => {
+    const base = String(value || ("Sheet" + (index + 1))).replace(/[:\\/?*\\[\\]]/g, " ").replace(/^'+|'+$/g, "").trim().slice(0, 31) || ("Sheet" + (index + 1));
+    let name = base, suffix = 2;
+    while (used.has(name.toLowerCase())) {
+      const tail = " (" + suffix++ + ")";
+      name = base.slice(0, 31 - tail.length) + tail;
+    }
+    used.add(name.toLowerCase());
+    return name;
+  };
   const downloadBlob = (blob, name) => {
     const url = URL.createObjectURL(blob), a = document.createElement("a");
     a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1500);
