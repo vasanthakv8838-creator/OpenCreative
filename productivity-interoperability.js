@@ -60,7 +60,7 @@
     return style;
   };
   const safeSheetName = (value, index, used) => {
-    const base = String(value || ("Sheet" + (index + 1))).replace(/[:\\/?*\\[\\]]/g, " ").replace(/^'+|'+$/g, "").trim().slice(0, 31) || ("Sheet" + (index + 1));
+    const base = String(value || ("Sheet" + (index + 1))).replace(/[\\/:?*\[\]]/g, " ").replace(/^'+|'+$/g, "").trim().slice(0, 31) || ("Sheet" + (index + 1));
     let name = base, suffix = 2;
     while (used.has(name.toLowerCase())) {
       const tail = " (" + suffix++ + ")";
