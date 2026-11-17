@@ -173,49 +173,92 @@
       if (result.messages && result.messages.length) alert("Imported with notes: some Word formatting or unsupported content may not be preserved.");
     } catch (e) { alert("DOCX import failed: " + e.message + ". Check your internet connection and try again."); }
   };
-  const toAoA = (cells) => cells.map(row => row.map(value => {
+  const toAoA = cells => cells.map(row => row.map(value => {
     const raw = String(value ?? "");
     if (raw.startsWith("=")) return {f:raw.slice(1)};
     return raw;
   }));
+  const verifyXlsxRoundTrip = (bytes, sheets, names) => {
+    const reopened = XLSX.read(bytes, {type:"array", cellFormula:true});
+    if (reopened.SheetNames.length !== sheets.length) throw new Error("The generated workbook did not reopen with the expected worksheet count.");
+    let checked = 0;
+    sheets.forEach((sheet, index) => {
+      const ws = reopened.Sheets[names[index]];
+      if (!ws) throw new Error("Worksheet verification failed for " + names[index] + ".");
+      sheet.cells.forEach((row, r) => row.forEach((value, c) => {
+        const expected = String(value ?? "");
+        if (!expected) return;
+        const address = XLSX.utils.encode_cell({r,c}), cell = ws[address];
+        if (expected.startsWith("=")) {
+          if (!cell || String(cell.f || "") !== expected.slice(1)) throw new Error("Formula verification failed at " + names[index] + "!" + address + ".");
+        } else if (!cell || String(cell.v ?? "") !== expected) {
+          throw new Error("Value verification failed at " + names[index] + "!" + address + ".");
+        }
+        checked++;
+      }));
+    });
+    return checked;
+  };
   const exportXlsx = async () => {
     try {
       await ensure(["xlsx"]);
       const sheets = window.OpenCreativeSheets ? window.OpenCreativeSheets.getWorkbook() : [{name:"Sheet1",cells:data.sheet}];
-      const wb = XLSX.utils.book_new();
+      if (!sheets.length || sheets.length > MAX_XLSX_SHEETS) throw new Error("A workbook must contain 1 to " + MAX_XLSX_SHEETS + " worksheets.");
+      let totalCells = 0;
+      sheets.forEach(sheet => {
+        const rowCount = sheet.cells.length, colCount = Math.max(1, ...sheet.cells.map(row => row.length));
+        if (rowCount > MAX_XLSX_ROWS || colCount > MAX_XLSX_COLS) throw new Error("Workbook exceeds the supported export size of " + MAX_XLSX_ROWS + " rows by " + MAX_XLSX_COLS + " columns per sheet.");
+        totalCells += rowCount * colCount;
+      });
+      if (totalCells > MAX_XLSX_CELLS) throw new Error("Workbook exceeds the " + MAX_XLSX_CELLS.toLocaleString() + " cell export limit.");
+      const wb = XLSX.utils.book_new(), usedNames = new Set(), names = [];
       sheets.forEach((sheet, index) => {
         const ws = XLSX.utils.aoa_to_sheet(toAoA(sheet.cells));
-        const name = String(sheet.name || ("Sheet"+(index+1))).slice(0,31) || ("Sheet"+(index+1));
+        const name = safeSheetName(sheet.name, index, usedNames);
+        names.push(name);
         XLSX.utils.book_append_sheet(wb, ws, name);
       });
       const bytes = XLSX.write(wb, {bookType:"xlsx", type:"array", cellFormula:true});
+      const verifiedCells = verifyXlsxRoundTrip(bytes, sheets, names);
       downloadBlob(new Blob([bytes], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}), "opencreative-workbook.xlsx");
-      status("Exported " + sheets.length + " worksheet(s) to XLSX");
+      const renamed = sheets.some((sheet, index) => String(sheet.name || ("Sheet" + (index + 1))) !== names[index]);
+      status("XLSX verified: " + sheets.length + " sheet(s), " + verifiedCells + " non-empty value/formula cell(s)." + (renamed ? " Invalid or duplicate sheet names were made unique in the export." : "") + " Cell styles are not exported.");
     } catch (e) { status("XLSX export unavailable"); alert("XLSX export failed: " + e.message); }
   };
-  const importXlsx = async (file) => {
+  const importXlsx = async file => {
     try {
+      checkFileSize(file, MAX_XLSX_BYTES, "XLSX file");
       await ensure(["xlsx"]);
       const wb = XLSX.read(await file.arrayBuffer(), {type:"array", cellFormula:true, cellStyles:true});
       if (!wb.SheetNames.length) throw new Error("The workbook has no worksheets.");
+      if (wb.SheetNames.length > MAX_XLSX_SHEETS) throw new Error("Workbook contains more than " + MAX_XLSX_SHEETS + " worksheets.");
+      let totalCells = 0;
       const imported = wb.SheetNames.map(name => {
         const ws = wb.Sheets[name];
-        const ref = ws["!ref"] || "A1", range = XLSX.utils.decode_range(ref), cells = [];
+        const ref = ws["!ref"] || "A1", range = XLSX.utils.decode_range(ref);
+        const rowCount = range.e.r + 1, colCount = range.e.c + 1;
+        if (rowCount > MAX_XLSX_ROWS || colCount > MAX_XLSX_COLS) throw new Error("Worksheet '" + name + "' exceeds the supported import size of " + MAX_XLSX_ROWS + " rows by " + MAX_XLSX_COLS + " columns.");
+        totalCells += rowCount * colCount;
+        if (totalCells > MAX_XLSX_CELLS) throw new Error("Workbook exceeds the " + MAX_XLSX_CELLS.toLocaleString() + " cell import limit.");
+        const cells = Array.from({length:rowCount}, () => Array(colCount).fill(""));
+        const styles = {};
         for (let r=range.s.r; r<=range.e.r; r++) {
-          const row = [];
           for (let c=range.s.c; c<=range.e.c; c++) {
             const cell = ws[XLSX.utils.encode_cell({r,c})];
-            row.push(!cell ? "" : cell.f ? "=" + cell.f : cell.v ?? cell.w ?? "");
+            if (!cell) continue;
+            cells[r][c] = cell.f ? "=" + cell.f : String(cell.v ?? cell.w ?? "");
+            const style = importedStyle(cell);
+            if (Object.keys(style).length) styles[r + ":" + c] = style;
           }
-          cells.push(row);
         }
-        return {name, cells};
+        return {name, cells, styles};
       });
       if (window.OpenCreativeSheets) window.OpenCreativeSheets.setWorkbook(imported);
       else {
         data.sheet = imported[0].cells; rows = data.sheet.length; cols = Math.max(1,...data.sheet.map(r=>r.length)); persist(); renderSheet();
       }
-      status("Imported " + imported.length + " worksheet(s) from " + file.name);
+      const styled = imported.reduce((count, sheet) => count + Object.keys(sheet.styles).length, 0);
+      status("Imported " + imported.length + " worksheet(s), " + styled + " styled cell(s) where supported, from " + file.name);
     } catch (e) { alert("XLSX import failed: " + e.message + ". The current workbook was not changed."); }
   };
   const init = () => {
