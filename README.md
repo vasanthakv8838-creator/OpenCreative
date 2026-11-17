@@ -29,7 +29,7 @@ No account or subscription is required. Most processing in this MVP happens loca
 
 - `index.html` — complete browser app
 - `productivity.html`, `productivity-sheet-engine.js` and `productivity-interoperability.js` — local-first productivity suite and Office format helpers
-- `portal.html` and `portal-enhancements.js` — independent Yahoo-inspired portal, local drafts/contacts, calendar export and backup tools
+- `portal.html`, `portal-enhancements.js` and `portal-news.js` — independent Yahoo-inspired portal, local drafts/contacts, calendar export, backup tools and RSS/Atom reader
 - `LICENSE` — MIT License
 - `.gitignore` — common local development exclusions
 - `OpenCreative-v0.1.0.zip` — packaged v0.1.0 source bundle
