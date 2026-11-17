@@ -102,7 +102,10 @@
   };
   const blockXml = (node) => {
     const tag = node.tagName.toLowerCase();
-    if (tag === "ul" || tag === "ol") return [...node.children].map(li => '<w:p><w:pPr><w:ind w:left="360"/></w:pPr><w:r><w:t>• </w:t></w:r>' + [...li.childNodes].map(n => wordInline(n)).join("") + "</w:p>").join("");
+    if (tag === "ul" || tag === "ol") return [...node.children].map((li, index) => {
+      const marker = tag === "ol" ? (index + 1) + ". " : "• ";
+      return '<w:p><w:pPr><w:ind w:left="360"/></w:pPr><w:r><w:t xml:space="preserve">' + xmlEscape(marker) + "</w:t></w:r>" + [...li.childNodes].map(n => wordInline(n)).join("") + "</w:p>";
+    }).join("");
     if (tag === "li") return '<w:p><w:r><w:t>• </w:t></w:r>' + [...node.childNodes].map(n => wordInline(n)).join("") + "</w:p>";
     const runs = [...node.childNodes].map(n => wordInline(n)).join("");
     let pPr = "";
@@ -124,11 +127,16 @@
       const documentXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
         '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' + body +
         '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr></w:body></w:document>';
+      const headingSizes = [32, 28, 24, 22, 20, 18];
+      const headingStyles = headingSizes.map((size, index) => '<w:style w:type="paragraph" w:styleId="Heading' + (index + 1) + '"><w:name w:val="heading ' + (index + 1) + '"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/></w:pPr><w:rPr><w:b/><w:sz w:val="' + size + '"/></w:rPr></w:style>').join("");
+      const stylesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:sz w:val="22"/></w:rPr></w:style>' + headingStyles + "</w:styles>";
       const zip = new JSZip();
-      zip.file("[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
+      zip.file("[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>');
       zip.file("_rels/.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
+      zip.file("word/_rels/document.xml.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
       zip.file("word/document.xml", documentXml);
-      const blob = await zip.generateAsync({type:"blob", mimeType:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
+      zip.file("word/styles.xml", stylesXml);
+      const blob = await zip.generateAsync({type:"blob", mimeType:"application/vnd.openxmlformats-officedocument.wordprocessingml.document", compression:"DEFLATE", compressionOptions:{level:6}});
       downloadBlob(blob, safeName(title, ".docx")); docStatus("DOCX exported");
     } catch (e) { docStatus("DOCX export unavailable"); alert("DOCX export failed: " + e.message); }
   };
@@ -153,6 +161,7 @@
   };
   const importDocx = async (file) => {
     try {
+      checkFileSize(file, MAX_DOCX_BYTES, "DOCX file");
       await ensure(["mammoth"]);
       const result = await mammoth.convertToHtml({arrayBuffer: await file.arrayBuffer()});
       const clean = cleanImportedHtml(result.value);
