@@ -100,8 +100,46 @@
     if (tag === "u") next.underline = true;
     return [...node.childNodes].map(child => wordInline(child, next)).join("");
   };
+  const cellNodeBlocks = (node, isHeader) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return (node.nodeValue || "").trim() ? "<w:p>" + wordInline(node, isHeader ? {bold:true} : {}) + "</w:p>" : "";
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return "";
+    const tag = node.tagName.toLowerCase();
+    if (tag === "table") return wordTableXml(node);
+    if (tag === "p") {
+      const runs = [...node.childNodes].map(child => wordInline(child, isHeader ? {bold:true} : {})).join("");
+      return "<w:p>" + runs + "</w:p>";
+    }
+    if (/^h[1-6]$/.test(tag) || tag === "blockquote" || tag === "ul" || tag === "ol" || tag === "li") return blockXml(node);
+    const hasBlocks = [...node.childNodes].some(child => child.nodeType === Node.ELEMENT_NODE && ["P","DIV","UL","OL","TABLE","BLOCKQUOTE"].includes(child.tagName));
+    if (hasBlocks) return [...node.childNodes].map(child => cellNodeBlocks(child, isHeader)).join("");
+    return "<w:p>" + wordInline(node, isHeader ? {bold:true} : {}) + "</w:p>";
+  };
+  const tableCellXml = cell => {
+    const isHeader = cell.tagName.toLowerCase() === "th";
+    const content = [...cell.childNodes].map(child => cellNodeBlocks(child, isHeader)).join("") || "<w:p/>";
+    const properties = isHeader ? '<w:tcPr><w:shd w:val="clear" w:fill="E9EDF5"/></w:tcPr>' : "";
+    return "<w:tc>" + properties + content + "</w:tc>";
+  };
+  const wordTableXml = table => {
+    const rows = [...table.children].flatMap(section => {
+      const tag = section.tagName.toLowerCase();
+      if (tag === "tr") return [section];
+      if (["thead","tbody","tfoot"].includes(tag)) return [...section.children].filter(row => row.tagName.toLowerCase() === "tr");
+      return [];
+    });
+    if (!rows.length) return "<w:p/>";
+    const columnCount = Math.max(1, ...rows.map(row => [...row.children].filter(cell => ["td","th"].includes(cell.tagName.toLowerCase())).length));
+    const columnWidth = Math.max(1, Math.floor(9360 / columnCount));
+    const grid = Array.from({length:columnCount}, () => '<w:gridCol w:w="' + columnWidth + '"/>').join("");
+    const borders = '<w:tblBorders><w:top w:val="single" w:sz="4" w:color="B7C0CE"/><w:left w:val="single" w:sz="4" w:color="B7C0CE"/><w:bottom w:val="single" w:sz="4" w:color="B7C0CE"/><w:right w:val="single" w:sz="4" w:color="B7C0CE"/><w:insideH w:val="single" w:sz="4" w:color="B7C0CE"/><w:insideV w:val="single" w:sz="4" w:color="B7C0CE"/></w:tblBorders>';
+    const body = rows.map(row => "<w:tr>" + [...row.children].filter(cell => ["td","th"].includes(cell.tagName.toLowerCase())).map(tableCellXml).join("") + "</w:tr>").join("");
+    return '<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/>' + borders + '</w:tblPr><w:tblGrid>' + grid + '</w:tblGrid>' + body + '</w:tbl>';
+  };
   const blockXml = (node) => {
     const tag = node.tagName.toLowerCase();
+    if (tag === "table") return wordTableXml(node);
     if (tag === "ul" || tag === "ol") return [...node.children].map((li, index) => {
       const marker = tag === "ol" ? (index + 1) + ". " : "• ";
       return '<w:p><w:pPr><w:ind w:left="360"/></w:pPr><w:r><w:t xml:space="preserve">' + xmlEscape(marker) + "</w:t></w:r>" + [...li.childNodes].map(n => wordInline(n)).join("") + "</w:p>";
@@ -142,7 +180,7 @@
   };
   const cleanImportedHtml = (html) => {
     const parsed = new DOMParser().parseFromString(html, "text/html");
-    const allowed = new Set(["P","H1","H2","H3","H4","H5","H6","BR","STRONG","B","EM","I","U","UL","OL","LI","BLOCKQUOTE"]);
+    const allowed = new Set(["P","H1","H2","H3","H4","H5","H6","BR","STRONG","B","EM","I","U","UL","OL","LI","BLOCKQUOTE","TABLE","THEAD","TBODY","TFOOT","TR","TD","TH"]);
     const cleanNode = (node) => {
       if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.nodeValue || "");
       if (node.nodeType !== Node.ELEMENT_NODE) return null;
@@ -266,7 +304,23 @@
     const docInput = fileInput("docxImportInput", ".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document", e => {
       const f = e.target.files[0]; if (f) importDocx(f); e.target.value = "";
     });
-    docToolbar.append(button("docxImport", "Import DOCX", () => docInput.click()), button("docxExport", "Export DOCX", exportDocx), docInput);
+    const insertTable = () => {
+      const editor = document.getElementById("docEditor"), table = document.createElement("table");
+      const head = document.createElement("thead"), headerRow = document.createElement("tr");
+      for (let c = 1; c <= 3; c++) { const cell = document.createElement("th"); cell.textContent = "Column " + c; headerRow.append(cell); }
+      head.append(headerRow); table.append(head);
+      const body = document.createElement("tbody");
+      for (let r = 0; r < 2; r++) {
+        const row = document.createElement("tr");
+        for (let c = 0; c < 3; c++) row.append(document.createElement("td"));
+        body.append(row);
+      }
+      table.append(body); editor.append(table);
+      editor.dispatchEvent(new Event("input", {bubbles:true}));
+      const firstCell = table.querySelector("th"); if (firstCell) firstCell.focus();
+      docStatus("3 × 3 table inserted. Edit the cells and export as DOCX.");
+    };
+    docToolbar.append(button("docxImport", "Import DOCX", () => docInput.click()), button("docxExport", "Export DOCX", exportDocx), button("docInsertTable", "Insert 3×3 table", insertTable), docInput);
     const sheetToolbar = document.querySelector("#sheets .toolbar");
     const xlsxInput = fileInput("xlsxImportInput", ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", e => {
       const f = e.target.files[0]; if (f) importXlsx(f); e.target.value = "";
