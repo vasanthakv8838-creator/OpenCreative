@@ -239,6 +239,15 @@
       cell.alignment = {horizontal:style.align};
     }
   };
+  const cellAddress = (r, c) => {
+    let n = c + 1, label = "";
+    while (n > 0) {
+      const remainder = (n - 1) % 26;
+      label = String.fromCharCode(65 + remainder) + label;
+      n = Math.floor((n - 1) / 26);
+    }
+    return label + (r + 1);
+  };
   const verifyExcelJsRoundTrip = async (bytes, sheets, names) => {
     const reopened = new ExcelJS.Workbook();
     await reopened.xlsx.load(bytes);
@@ -255,28 +264,28 @@
         if (expected.startsWith("=")) {
           const formula = cell.value && typeof cell.value === "object" ? cell.value.formula : "";
           if (String(formula || "") !== expected.slice(1)) {
-            throw new Error("Formula verification failed at " + names[index] + "!" + XLSX.utils.encode_cell({r,c}) + ".");
+            throw new Error("Formula verification failed at " + names[index] + "!" + cellAddress(r,c) + ".");
           }
         } else if (expected !== "" && String(cell.value ?? "") !== expected) {
-          throw new Error("Value verification failed at " + names[index] + "!" + XLSX.utils.encode_cell({r,c}) + ".");
+          throw new Error("Value verification failed at " + names[index] + "!" + cellAddress(r,c) + ".");
         }
         if (style.bold === true && cell.font.bold !== true) {
-          throw new Error("Bold formatting verification failed at " + names[index] + "!" + XLSX.utils.encode_cell({r,c}) + ".");
+          throw new Error("Bold formatting verification failed at " + names[index] + "!" + cellAddress(r,c) + ".");
         }
         if (style.italic === true && cell.font.italic !== true) {
-          throw new Error("Italic formatting verification failed at " + names[index] + "!" + XLSX.utils.encode_cell({r,c}) + ".");
+          throw new Error("Italic formatting verification failed at " + names[index] + "!" + cellAddress(r,c) + ".");
         }
         const expectedColor = styleArgb(style.color);
         if (expectedColor && String(cell.font.color && cell.font.color.argb || "").toUpperCase() !== expectedColor) {
-          throw new Error("Font color verification failed at " + names[index] + "!" + XLSX.utils.encode_cell({r,c}) + ".");
+          throw new Error("Font color verification failed at " + names[index] + "!" + cellAddress(r,c) + ".");
         }
         const expectedFill = styleArgb(style.background);
         if (expectedFill && String(cell.fill && cell.fill.fgColor && cell.fill.fgColor.argb || "").toUpperCase() !== expectedFill) {
-          throw new Error("Fill color verification failed at " + names[index] + "!" + XLSX.utils.encode_cell({r,c}) + ".");
+          throw new Error("Fill color verification failed at " + names[index] + "!" + cellAddress(r,c) + ".");
         }
         if (["left", "center", "right"].includes(style.align) &&
             (!cell.alignment || cell.alignment.horizontal !== style.align)) {
-          throw new Error("Alignment verification failed at " + names[index] + "!" + XLSX.utils.encode_cell({r,c}) + ".");
+          throw new Error("Alignment verification failed at " + names[index] + "!" + cellAddress(r,c) + ".");
         }
         if (expected !== "") checked++;
         if (hasExportStyle(style)) styled++;
@@ -348,7 +357,7 @@
         const styles = {};
         for (let r=range.s.r; r<=range.e.r; r++) {
           for (let c=range.s.c; c<=range.e.c; c++) {
-            const cell = ws[XLSX.utils.encode_cell({r,c})];
+            const cell = ws[cellAddress(r,c)];
             if (!cell) continue;
             cells[r][c] = cell.f ? "=" + cell.f : String(cell.v ?? cell.w ?? "");
             const style = importedStyle(cell);
