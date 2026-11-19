@@ -12,11 +12,16 @@
   const deps = {
     xlsx: "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js",
     mammoth: "https://cdn.jsdelivr.net/npm/mammoth@1.9.0/mammoth.browser.min.js",
-    jszip: "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"
+    jszip: "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js",
+    exceljs: "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"
   };
   const ensure = async (names) => {
     for (const name of names) {
-      const present = name === "xlsx" ? window.XLSX : name === "mammoth" ? window.mammoth : window.JSZip;
+      const present = name === "xlsx" ? window.XLSX :
+        name === "mammoth" ? window.mammoth :
+        name === "jszip" ? window.JSZip :
+        name === "exceljs" ? window.ExcelJS : null;
+      if (!deps[name]) throw new Error("Unknown Office library: " + name);
       if (!present) await loadScript(deps[name]);
     }
   };
@@ -211,57 +216,118 @@
       if (result.messages && result.messages.length) alert("Imported with notes: some Word formatting or unsupported content may not be preserved.");
     } catch (e) { alert("DOCX import failed: " + e.message + ". Check your internet connection and try again."); }
   };
-  const toAoA = cells => cells.map(row => row.map(value => {
-    const raw = String(value ?? "");
-    if (raw.startsWith("=")) return {f:raw.slice(1)};
-    return raw;
-  }));
-  const verifyXlsxRoundTrip = (bytes, sheets, names) => {
-    const reopened = XLSX.read(bytes, {type:"array", cellFormula:true});
-    if (reopened.SheetNames.length !== sheets.length) throw new Error("The generated workbook did not reopen with the expected worksheet count.");
-    let checked = 0;
+  const styleArgb = value => {
+    const hex = String(value || "").replace(/^#/, "").toUpperCase();
+    return /^[0-9A-F]{6}$/.test(hex) ? "FF" + hex : "";
+  };
+  const hasExportStyle = style => !!(style && (
+    style.bold === true || style.italic === true ||
+    styleArgb(style.color) || styleArgb(style.background) ||
+    ["left", "center", "right"].includes(style.align)
+  ));
+  const applyExcelJsStyle = (cell, style) => {
+    if (!style || typeof style !== "object") return;
+    const font = {};
+    if (style.bold === true) font.bold = true;
+    if (style.italic === true) font.italic = true;
+    const color = styleArgb(style.color);
+    if (color) font.color = {argb:color};
+    if (Object.keys(font).length) cell.font = font;
+    const fill = styleArgb(style.background);
+    if (fill) cell.fill = {type:"pattern", pattern:"solid", fgColor:{argb:fill}};
+    if (["left", "center", "right"].includes(style.align)) {
+      cell.alignment = {horizontal:style.align};
+    }
+  };
+  const verifyExcelJsRoundTrip = async (bytes, sheets, names) => {
+    const reopened = new ExcelJS.Workbook();
+    await reopened.xlsx.load(bytes);
+    if (reopened.worksheets.length !== sheets.length) {
+      throw new Error("The generated workbook did not reopen with the expected worksheet count.");
+    }
+    let checked = 0, styled = 0;
     sheets.forEach((sheet, index) => {
-      const ws = reopened.Sheets[names[index]];
+      const ws = reopened.getWorksheet(names[index]);
       if (!ws) throw new Error("Worksheet verification failed for " + names[index] + ".");
       sheet.cells.forEach((row, r) => row.forEach((value, c) => {
-        const expected = String(value ?? "");
-        if (!expected) return;
-        const address = XLSX.utils.encode_cell({r,c}), cell = ws[address];
+        const expected = String(value ?? ""), cell = ws.getCell(r + 1, c + 1);
+        const style = sheet.styles && sheet.styles[r + ":" + c] || {};
         if (expected.startsWith("=")) {
-          if (!cell || String(cell.f || "") !== expected.slice(1)) throw new Error("Formula verification failed at " + names[index] + "!" + address + ".");
-        } else if (!cell || String(cell.v ?? "") !== expected) {
-          throw new Error("Value verification failed at " + names[index] + "!" + address + ".");
+          const formula = cell.value && typeof cell.value === "object" ? cell.value.formula : "";
+          if (String(formula || "") !== expected.slice(1)) {
+            throw new Error("Formula verification failed at " + names[index] + "!" + XLSX.utils.encode_cell({r,c}) + ".");
+          }
+        } else if (expected !== "" && String(cell.value ?? "") !== expected) {
+          throw new Error("Value verification failed at " + names[index] + "!" + XLSX.utils.encode_cell({r,c}) + ".");
         }
-        checked++;
+        if (style.bold === true && cell.font.bold !== true) {
+          throw new Error("Bold formatting verification failed at " + names[index] + "!" + XLSX.utils.encode_cell({r,c}) + ".");
+        }
+        if (style.italic === true && cell.font.italic !== true) {
+          throw new Error("Italic formatting verification failed at " + names[index] + "!" + XLSX.utils.encode_cell({r,c}) + ".");
+        }
+        const expectedColor = styleArgb(style.color);
+        if (expectedColor && String(cell.font.color && cell.font.color.argb || "").toUpperCase() !== expectedColor) {
+          throw new Error("Font color verification failed at " + names[index] + "!" + XLSX.utils.encode_cell({r,c}) + ".");
+        }
+        const expectedFill = styleArgb(style.background);
+        if (expectedFill && String(cell.fill && cell.fill.fgColor && cell.fill.fgColor.argb || "").toUpperCase() !== expectedFill) {
+          throw new Error("Fill color verification failed at " + names[index] + "!" + XLSX.utils.encode_cell({r,c}) + ".");
+        }
+        if (["left", "center", "right"].includes(style.align) &&
+            (!cell.alignment || cell.alignment.horizontal !== style.align)) {
+          throw new Error("Alignment verification failed at " + names[index] + "!" + XLSX.utils.encode_cell({r,c}) + ".");
+        }
+        if (expected !== "") checked++;
+        if (hasExportStyle(style)) styled++;
       }));
     });
-    return checked;
+    return {checked, styled};
   };
   const exportXlsx = async () => {
     try {
-      await ensure(["xlsx"]);
-      const sheets = window.OpenCreativeSheets ? window.OpenCreativeSheets.getWorkbook() : [{name:"Sheet1",cells:data.sheet}];
+      await ensure(["exceljs"]);
+      const sheets = window.OpenCreativeSheets ? window.OpenCreativeSheets.getWorkbook() : [{name:"Sheet1",cells:data.sheet,styles:{}}];
       if (!sheets.length || sheets.length > MAX_XLSX_SHEETS) throw new Error("A workbook must contain 1 to " + MAX_XLSX_SHEETS + " worksheets.");
       let totalCells = 0;
       sheets.forEach(sheet => {
+        if (!sheet || !Array.isArray(sheet.cells) || sheet.cells.some(row => !Array.isArray(row))) {
+          throw new Error("A worksheet contains invalid cell data.");
+        }
         const rowCount = sheet.cells.length, colCount = Math.max(1, ...sheet.cells.map(row => row.length));
-        if (rowCount > MAX_XLSX_ROWS || colCount > MAX_XLSX_COLS) throw new Error("Workbook exceeds the supported export size of " + MAX_XLSX_ROWS + " rows by " + MAX_XLSX_COLS + " columns per sheet.");
+        if (rowCount > MAX_XLSX_ROWS || colCount > MAX_XLSX_COLS) {
+          throw new Error("Workbook exceeds the supported export size of " + MAX_XLSX_ROWS + " rows by " + MAX_XLSX_COLS + " columns per sheet.");
+        }
         totalCells += rowCount * colCount;
       });
       if (totalCells > MAX_XLSX_CELLS) throw new Error("Workbook exceeds the " + MAX_XLSX_CELLS.toLocaleString() + " cell export limit.");
-      const wb = XLSX.utils.book_new(), usedNames = new Set(), names = [];
+      const workbook = new ExcelJS.Workbook(), usedNames = new Set(), names = [];
+      workbook.creator = "OpenCreative";
+      workbook.calcProperties = {fullCalcOnLoad:true, forceFullCalc:true};
       sheets.forEach((sheet, index) => {
-        const ws = XLSX.utils.aoa_to_sheet(toAoA(sheet.cells));
         const name = safeSheetName(sheet.name, index, usedNames);
         names.push(name);
-        XLSX.utils.book_append_sheet(wb, ws, name);
+        const worksheet = workbook.addWorksheet(name);
+        sheet.cells.forEach((row, r) => row.forEach((value, c) => {
+          const raw = String(value ?? ""), style = sheet.styles && sheet.styles[r + ":" + c] || {};
+          if (raw === "" && !hasExportStyle(style)) return;
+          const cell = worksheet.getCell(r + 1, c + 1);
+          if (raw.startsWith("=")) cell.value = {formula:raw.slice(1)};
+          else if (raw !== "") cell.value = raw;
+          applyExcelJsStyle(cell, style);
+        }));
       });
-      const bytes = XLSX.write(wb, {bookType:"xlsx", type:"array", cellFormula:true});
-      const verifiedCells = verifyXlsxRoundTrip(bytes, sheets, names);
+      const bytes = await workbook.xlsx.writeBuffer();
+      const verification = await verifyExcelJsRoundTrip(bytes, sheets, names);
       downloadBlob(new Blob([bytes], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}), "opencreative-workbook.xlsx");
       const renamed = sheets.some((sheet, index) => String(sheet.name || ("Sheet" + (index + 1))) !== names[index]);
-      status("XLSX verified: " + sheets.length + " sheet(s), " + verifiedCells + " non-empty value/formula cell(s)." + (renamed ? " Invalid or duplicate sheet names were made unique in the export." : "") + " Cell styles are not exported.");
-    } catch (e) { status("XLSX export unavailable"); alert("XLSX export failed: " + e.message); }
+      status("XLSX verified: " + sheets.length + " sheet(s), " + verification.checked + " value/formula cell(s), " + verification.styled + " styled cell(s)." +
+        (renamed ? " Invalid or duplicate sheet names were made unique in the export." : "") +
+        " Formulas are set to recalculate when opened in a compatible spreadsheet app.");
+    } catch (e) {
+      status("XLSX export unavailable");
+      alert("XLSX export failed: " + e.message + (e.message.includes("exceljs") ? " Check your internet connection and try again." : ""));
+    }
   };
   const importXlsx = async file => {
     try {
