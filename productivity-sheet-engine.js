@@ -134,6 +134,7 @@ const updateFormulaBar = (r,c) => {
   if(byId("fontColor"))byId("fontColor").value=safeColor(st.color)||"#172033";
   if(byId("fillColor"))byId("fillColor").value=safeColor(st.background)||"#ffffff";
   if(byId("numberFormat"))byId("numberFormat").value=st.numberFormat||"general";
+  if(byId("cellBorder"))byId("cellBorder").classList.toggle("active",!!st.border);
 };
 const saveActive = () => {data.sheet=activeSheet().cells;persist();};
 const setCell = (r,c,value) => {const s=activeSheet();while(s.cells.length<=r)s.cells.push(Array(cols).fill(""));while(s.cells[r].length<=c)s.cells[r].push("");s.cells[r][c]=value;saveActive();renderSheet();};
@@ -151,6 +152,7 @@ const renderSheet = () => {
       if(st.bold)css.push("font-weight:700");if(st.italic)css.push("font-style:italic");
       if(st.align&&["left","center","right"].includes(st.align))css.push("text-align:"+st.align);
       if(safeColor(st.color))css.push("color:"+st.color);if(safeColor(st.background))css.push("background-color:"+st.background);
+      if(st.border)css.push("box-shadow:inset 0 0 0 1px #9aa7c1");
       const raw=rawAt(r,c),shown=displayValue(r,c);
       out+='<td><input data-r="'+r+'" data-c="'+c+'" aria-label="'+colLetters(c)+(r+1)+'" value="'+escapeHtml(shown)+'" style="'+css.join(";")+'" title="'+escapeHtml(raw)+'"></td>';
     }out+="</tr>";
@@ -184,6 +186,7 @@ const bind = () => {
   byId("fillColor").oninput=e=>applyStyle({background:e.target.value});
   byId("alignCells").onchange=e=>applyStyle({align:e.target.value});
   byId("numberFormat").onchange=e=>applyStyle({numberFormat:e.target.value});
+  byId("cellBorder").onclick=()=>applyStyle({border:!styleFor(selectedCell.r,selectedCell.c).border});
   byId("sheetFilter").oninput=renderSheet;
   byId("sortColumn").onclick=sortSelectedColumn;
   byId("clearFilter").onclick=()=>{byId("sheetFilter").value="";renderSheet();};
