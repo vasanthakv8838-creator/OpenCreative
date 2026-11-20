@@ -403,6 +403,13 @@
     const checks = [];
     const assert = (condition, message) => { if (!condition) throw new Error(message); checks.push(message); };
     await ensure(["exceljs", "xlsx", "jszip", "mammoth"]);
+    assert(window.OpenCreativeSheets.normalizeNumberFormat("#,##0.00") === "number" &&
+      window.OpenCreativeSheets.normalizeNumberFormat("0.00%") === "percent" &&
+      window.OpenCreativeSheets.normalizeNumberFormat("₹#,##0.00") === "currency",
+      "Recognizes the supported imported and exported number format codes.");
+    assert(window.OpenCreativeSheets.formatNumber(0.125, "percent") === "12.50%" &&
+      window.OpenCreativeSheets.formatNumber(1250.5, "currency").includes("₹"),
+      "Displays percentage and Indian rupee formats in the sheet grid.");
     const sample = [{
       name:"Office regression",
       cells:[["Metric","Value","Formula"],["Revenue","1250.5","=SUM(B2:B2)"],["Rate","0.125","=B3*100"]],
