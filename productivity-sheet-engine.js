@@ -98,10 +98,29 @@ const parseFormula = (source,stack) => {
   const result=expression();if(p!==t.length)throw Error("Unexpected token");return result;
 };
 val = (r,c,stack=[]) => cellValue(r,c,stack);
-const displayValue = (r,c) => {
-  const v=cellValue(r,c);if(typeof v==="number"&&Number.isFinite(v))return String(Number(v.toPrecision(12)));return String(v??"");
+const numberFormats = Object.freeze({general:"General",number:"#,##0.00",integer:"#,##0",percent:"0.00%",currency:"₹#,##0.00"});
+const normalizeNumberFormat = value => {
+  const compact=String(value||"").trim().toLowerCase().replace(/\\s/g,"");
+  if(!compact||compact==="general")return "general";
+  if(["#,##0.00","0.00"].includes(compact))return "number";
+  if(["#,##0","0"].includes(compact))return "integer";
+  if(["0%","0.0%","0.00%"].includes(compact))return "percent";
+  if(compact.includes("₹")||compact.includes("inr")||compact.includes("$"))return "currency";
+  return "";
 };
 const styleFor = (r,c) => activeSheet().styles[r+":"+c] || {};
+const formatNumber = (value, format) => {
+  const n=Number(value);if(!Number.isFinite(n))return String(value??"");
+  if(format==="number")return new Intl.NumberFormat("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
+  if(format==="integer")return new Intl.NumberFormat("en-IN",{maximumFractionDigits:0}).format(n);
+  if(format==="percent")return new Intl.NumberFormat("en-IN",{style:"percent",minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
+  if(format==="currency")return new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
+  return String(Number(n.toPrecision(12)));
+};
+const displayValue = (r,c) => {
+  const v=cellValue(r,c),format=styleFor(r,c).numberFormat||"general";
+  return typeof v==="number"&&Number.isFinite(v)?formatNumber(v,format):String(v??"");
+};
 const safeColor = v => /^#[0-9a-f]{6}$/i.test(v||"")?v:"";
 const renderTabs = () => {
   const host=byId("sheetTabs");if(!host)return;host.innerHTML="";
@@ -114,6 +133,7 @@ const updateFormulaBar = (r,c) => {
   if(byId("fontItalic"))byId("fontItalic").classList.toggle("active",!!st.italic);
   if(byId("fontColor"))byId("fontColor").value=safeColor(st.color)||"#172033";
   if(byId("fillColor"))byId("fillColor").value=safeColor(st.background)||"#ffffff";
+  if(byId("numberFormat"))byId("numberFormat").value=st.numberFormat||"general";
 };
 const saveActive = () => {data.sheet=activeSheet().cells;persist();};
 const setCell = (r,c,value) => {const s=activeSheet();while(s.cells.length<=r)s.cells.push(Array(cols).fill(""));while(s.cells[r].length<=c)s.cells[r].push("");s.cells[r][c]=value;saveActive();renderSheet();};
@@ -131,13 +151,14 @@ const renderSheet = () => {
       if(st.bold)css.push("font-weight:700");if(st.italic)css.push("font-style:italic");
       if(st.align&&["left","center","right"].includes(st.align))css.push("text-align:"+st.align);
       if(safeColor(st.color))css.push("color:"+st.color);if(safeColor(st.background))css.push("background-color:"+st.background);
-      const raw=rawAt(r,c),shown=raw.startsWith("=")?displayValue(r,c):raw;
+      const raw=rawAt(r,c),shown=displayValue(r,c);
       out+='<td><input data-r="'+r+'" data-c="'+c+'" aria-label="'+colLetters(c)+(r+1)+'" value="'+escapeHtml(shown)+'" style="'+css.join(";")+'" title="'+escapeHtml(raw)+'"></td>';
     }out+="</tr>";
   }out+="</tbody>";table.innerHTML=out;
   table.querySelectorAll("input[data-r]").forEach(input=>{
     const r=Number(input.dataset.r),c=Number(input.dataset.c);
-    input.onfocus=()=>{updateFormulaBar(r,c);if(rawAt(r,c).startsWith("="))input.value=rawAt(r,c);};
+    input.onfocus=()=>{updateFormulaBar(r,c);const raw=rawAt(r,c);if(raw.startsWith("=")||styleFor(r,c).numberFormat)input.value=raw;};
+    input.onblur=()=>{if(input.value===rawAt(r,c))input.value=displayValue(r,c);};
     input.onchange=()=>setCell(r,c,input.value);
     input.onclick=()=>updateFormulaBar(r,c);
     input.onkeydown=e=>{if(e.key==="Enter"||e.key==="Tab"){e.preventDefault();const nr=Math.max(0,Math.min(rows-1,r+(e.key==="Enter"?1:0))),nc=Math.max(0,Math.min(cols-1,c+(e.key==="Tab"?1:0)));const next=table.querySelector('input[data-r="'+nr+'"][data-c="'+nc+'"]');if(next)next.focus();}};
@@ -162,6 +183,7 @@ const bind = () => {
   byId("fontColor").oninput=e=>applyStyle({color:e.target.value});
   byId("fillColor").oninput=e=>applyStyle({background:e.target.value});
   byId("alignCells").onchange=e=>applyStyle({align:e.target.value});
+  byId("numberFormat").onchange=e=>applyStyle({numberFormat:e.target.value});
   byId("sheetFilter").oninput=renderSheet;
   byId("sortColumn").onclick=sortSelectedColumn;
   byId("clearFilter").onclick=()=>{byId("sheetFilter").value="";renderSheet();};
@@ -172,5 +194,10 @@ const bind = () => {
   byId("csvExport").onclick=()=>{const csv=activeSheet().cells.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\r\n");download((activeSheet().name||"sheet")+".csv",csv,"text/csv;charset=utf-8");};
 };
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>{bind();renderSheet();},{once:true});else{bind();renderSheet();}
-window.OpenCreativeSheets={getWorkbook:()=>data.sheets.map(s=>({name:s.name,cells:s.cells,styles:s.styles})),setWorkbook:sheets=>{if(!Array.isArray(sheets)||!sheets.length)throw Error("Workbook needs at least one sheet");data.sheets=sheets.map((s,i)=>({id:"import-"+i+"-"+Date.now(),name:String(s.name||"Sheet"+(i+1)).slice(0,31),cells:s.cells,styles:s.styles||{}}));activeSheetId=data.sheets[0].id;syncSheet();persist();renderSheet();},setImportedStyles:(sheetIndex,styles)=>{if(data.sheets[sheetIndex])data.sheets[sheetIndex].styles=styles||{};persist();renderSheet();}};
+window.OpenCreativeSheets={
+  numberFormats,normalizeNumberFormat,formatNumber,
+  getWorkbook:()=>data.sheets.map(s=>({name:s.name,cells:s.cells,styles:s.styles})),
+  setWorkbook:sheets=>{if(!Array.isArray(sheets)||!sheets.length)throw Error("Workbook needs at least one sheet");data.sheets=sheets.map((s,i)=>({id:"import-"+i+"-"+Date.now(),name:String(s.name||"Sheet"+(i+1)).slice(0,31),cells:s.cells,styles:s.styles||{}}));activeSheetId=data.sheets[0].id;syncSheet();persist();renderSheet();},
+  setImportedStyles:(sheetIndex,styles)=>{if(data.sheets[sheetIndex])data.sheets[sheetIndex].styles=styles||{};persist();renderSheet();}
+};
 })();
