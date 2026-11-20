@@ -100,7 +100,7 @@ const parseFormula = (source,stack) => {
 val = (r,c,stack=[]) => cellValue(r,c,stack);
 const numberFormats = Object.freeze({general:"General",number:"#,##0.00",integer:"#,##0",percent:"0.00%",currency:"₹#,##0.00"});
 const normalizeNumberFormat = value => {
-  const compact=String(value||"").trim().toLowerCase().replace(/\\s/g,"");
+  const compact=String(value||"").trim().toLowerCase().replace(/\s/g,"");
   if(!compact||compact==="general")return "general";
   if(["#,##0.00","0.00"].includes(compact))return "number";
   if(["#,##0","0"].includes(compact))return "integer";
