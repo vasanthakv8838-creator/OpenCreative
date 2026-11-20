@@ -64,6 +64,8 @@
     if (["left", "center", "right"].includes(align)) style.align = align;
     const numberFormat = window.OpenCreativeSheets && window.OpenCreativeSheets.normalizeNumberFormat(cell.z || "");
     if (numberFormat && numberFormat !== "general") style.numberFormat = numberFormat;
+    const border = source.border;
+    if (border && ["top", "right", "bottom", "left"].some(side => border[side] && border[side].style)) style.border = true;
     return style;
   };
   const safeSheetName = (value, index, used) => {
@@ -232,7 +234,8 @@
     style.bold === true || style.italic === true ||
     styleArgb(style.color) || styleArgb(style.background) ||
     ["left", "center", "right"].includes(style.align) ||
-    ["number", "integer", "percent", "currency"].includes(style.numberFormat)
+    ["number", "integer", "percent", "currency"].includes(style.numberFormat) ||
+    style.border === true
   ));
   const applyExcelJsStyle = (cell, style) => {
     if (!style || typeof style !== "object") return;
@@ -249,6 +252,10 @@
     }
     const numberFormat = window.OpenCreativeSheets && window.OpenCreativeSheets.numberFormats[style.numberFormat];
     if (numberFormat) cell.numFmt = numberFormat;
+    if (style.border === true) {
+      const edge = {style:"thin",color:{argb:"FF9AA7C1"}};
+      cell.border = {top:{...edge},right:{...edge},bottom:{...edge},left:{...edge}};
+    }
   };
   const cellAddress = (r, c) => {
     let n = c + 1, label = "";
@@ -265,7 +272,7 @@
     if (reopened.worksheets.length !== sheets.length) {
       throw new Error("The generated workbook did not reopen with the expected worksheet count.");
     }
-    let checked = 0, styled = 0;
+    let checked = 0, styled = 0, bordered = 0;
     sheets.forEach((sheet, index) => {
       const ws = reopened.getWorksheet(names[index]);
       if (!ws) throw new Error("Worksheet verification failed for " + names[index] + ".");
@@ -302,11 +309,17 @@
         if (expectedNumberFormat && cell.numFmt !== expectedNumberFormat) {
           throw new Error("Number format verification failed at " + names[index] + "!" + cellAddress(r,c) + ".");
         }
+        if (style.border === true) {
+          if (["top","right","bottom","left"].some(side => !cell.border || !cell.border[side] || cell.border[side].style !== "thin")) {
+            throw new Error("Border verification failed at " + names[index] + "!" + cellAddress(r,c) + ".");
+          }
+          bordered++;
+        }
         if (expected !== "") checked++;
         if (hasExportStyle(style)) styled++;
       }));
     });
-    return {checked, styled};
+    return {checked, styled, bordered};
   };
   const buildXlsxBuffer = async sheets => {
     if (!sheets.length || sheets.length > MAX_XLSX_SHEETS) throw new Error("A workbook must contain 1 to " + MAX_XLSX_SHEETS + " worksheets.");
@@ -413,11 +426,12 @@
     const sample = [{
       name:"Office regression",
       cells:[["Metric","Value","Formula"],["Revenue","1250.5","=SUM(B2:B2)"],["Rate","0.125","=B3*100"]],
-      styles:{"1:1":{bold:true,numberFormat:"currency"},"2:1":{numberFormat:"percent"},"1:0":{italic:true}}
+      styles:{"1:1":{bold:true,numberFormat:"currency",border:true},"2:1":{numberFormat:"percent"},"1:0":{italic:true}}
     }];
     const built = await buildXlsxBuffer(sample);
     assert(built.verification.checked === 9, "XLSX export reopens with all nine populated values/formulas.");
     assert(built.verification.styled === 3, "XLSX export verifies bold, italic and number-format styles.");
+    assert(built.verification.bordered === 1, "XLSX export writes and reopens all four thin cell borders.");
     const parsed = await importXlsx(new File([built.bytes], "office-regression.xlsx", {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}), false);
     assert(parsed.length === 1 && parsed[0].name === "Office regression", "XLSX import restores the worksheet name.");
     assert(parsed[0].cells[1][2] === "=SUM(B2:B2)" && parsed[0].cells[2][2] === "=B3*100", "XLSX import preserves formula expressions.");
