@@ -62,6 +62,8 @@
     if (color) style.color = color;
     if (fill) style.background = fill;
     if (["left", "center", "right"].includes(align)) style.align = align;
+    const numberFormat = window.OpenCreativeSheets && window.OpenCreativeSheets.normalizeNumberFormat(cell.z || "");
+    if (numberFormat && numberFormat !== "general") style.numberFormat = numberFormat;
     return style;
   };
   const safeSheetName = (value, index, used) => {
@@ -156,30 +158,32 @@
     if (tag === "blockquote") pPr = '<w:pPr><w:ind w:left="480"/></w:pPr>';
     return "<w:p>" + pPr + runs + "</w:p>";
   };
+  const buildDocxBlob = async html => {
+    await ensure(["jszip"]);
+    const parsed = new DOMParser().parseFromString(String(html || ""), "text/html");
+    const body = [...parsed.body.childNodes].map(n => {
+      if (n.nodeType === Node.TEXT_NODE) return "<w:p><w:r><w:t>" + xmlEscape(n.nodeValue) + "</w:t></w:r></w:p>";
+      if (n.nodeType === Node.ELEMENT_NODE) return blockXml(n);
+      return "";
+    }).join("") || "<w:p/>";
+    const documentXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' + body +
+      '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr></w:body></w:document>';
+    const headingSizes = [32, 28, 24, 22, 20, 18];
+    const headingStyles = headingSizes.map((size, index) => '<w:style w:type="paragraph" w:styleId="Heading' + (index + 1) + '"><w:name w:val="heading ' + (index + 1) + '"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/></w:pPr><w:rPr><w:b/><w:sz w:val="' + size + '"/></w:rPr></w:style>').join("");
+    const stylesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:sz w:val="22"/></w:rPr></w:style>' + headingStyles + "</w:styles>";
+    const zip = new JSZip();
+    zip.file("[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>');
+    zip.file("_rels/.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
+    zip.file("word/_rels/document.xml.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
+    zip.file("word/document.xml", documentXml);
+    zip.file("word/styles.xml", stylesXml);
+    return zip.generateAsync({type:"blob", mimeType:"application/vnd.openxmlformats-officedocument.wordprocessingml.document", compression:"DEFLATE", compressionOptions:{level:6}});
+  };
   const exportDocx = async () => {
     try {
-      await ensure(["jszip"]);
       const title = document.getElementById("docTitle").value || "Document";
-      const editor = document.getElementById("docEditor");
-      const parsed = new DOMParser().parseFromString(editor.innerHTML, "text/html");
-      const body = [...parsed.body.childNodes].map(n => {
-        if (n.nodeType === Node.TEXT_NODE) return "<w:p><w:r><w:t>" + xmlEscape(n.nodeValue) + "</w:t></w:r></w:p>";
-        if (n.nodeType === Node.ELEMENT_NODE) return blockXml(n);
-        return "";
-      }).join("") || "<w:p/>";
-      const documentXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' + body +
-        '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr></w:body></w:document>';
-      const headingSizes = [32, 28, 24, 22, 20, 18];
-      const headingStyles = headingSizes.map((size, index) => '<w:style w:type="paragraph" w:styleId="Heading' + (index + 1) + '"><w:name w:val="heading ' + (index + 1) + '"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/></w:pPr><w:rPr><w:b/><w:sz w:val="' + size + '"/></w:rPr></w:style>').join("");
-      const stylesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:sz w:val="22"/></w:rPr></w:style>' + headingStyles + "</w:styles>";
-      const zip = new JSZip();
-      zip.file("[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>');
-      zip.file("_rels/.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
-      zip.file("word/_rels/document.xml.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
-      zip.file("word/document.xml", documentXml);
-      zip.file("word/styles.xml", stylesXml);
-      const blob = await zip.generateAsync({type:"blob", mimeType:"application/vnd.openxmlformats-officedocument.wordprocessingml.document", compression:"DEFLATE", compressionOptions:{level:6}});
+      const blob = await buildDocxBlob(document.getElementById("docEditor").innerHTML);
       downloadBlob(blob, safeName(title, ".docx")); docStatus("DOCX exported");
     } catch (e) { docStatus("DOCX export unavailable"); alert("DOCX export failed: " + e.message); }
   };
@@ -202,12 +206,16 @@
     [...parsed.body.childNodes].forEach(n => { const c = cleanNode(n); if (c) out.append(c); });
     return out.innerHTML;
   };
+  const convertDocxBuffer = async arrayBuffer => {
+    await ensure(["mammoth"]);
+    const result = await mammoth.convertToHtml({arrayBuffer});
+    return {html:cleanImportedHtml(result.value),messages:result.messages || []};
+  };
   const importDocx = async (file) => {
     try {
       checkFileSize(file, MAX_DOCX_BYTES, "DOCX file");
-      await ensure(["mammoth"]);
-      const result = await mammoth.convertToHtml({arrayBuffer: await file.arrayBuffer()});
-      const clean = cleanImportedHtml(result.value);
+      const result = await convertDocxBuffer(await file.arrayBuffer());
+      const clean = result.html;
       if (!clean.trim()) throw new Error("No readable document text was found.");
       document.getElementById("docEditor").innerHTML = clean;
       document.getElementById("docTitle").value = file.name.replace(/\.docx$/i, "") || "Imported document";
@@ -223,7 +231,8 @@
   const hasExportStyle = style => !!(style && (
     style.bold === true || style.italic === true ||
     styleArgb(style.color) || styleArgb(style.background) ||
-    ["left", "center", "right"].includes(style.align)
+    ["left", "center", "right"].includes(style.align) ||
+    ["number", "integer", "percent", "currency"].includes(style.numberFormat)
   ));
   const applyExcelJsStyle = (cell, style) => {
     if (!style || typeof style !== "object") return;
@@ -238,6 +247,8 @@
     if (["left", "center", "right"].includes(style.align)) {
       cell.alignment = {horizontal:style.align};
     }
+    const numberFormat = window.OpenCreativeSheets && window.OpenCreativeSheets.numberFormats[style.numberFormat];
+    if (numberFormat) cell.numFmt = numberFormat;
   };
   const cellAddress = (r, c) => {
     let n = c + 1, label = "";
@@ -287,58 +298,66 @@
             (!cell.alignment || cell.alignment.horizontal !== style.align)) {
           throw new Error("Alignment verification failed at " + names[index] + "!" + cellAddress(r,c) + ".");
         }
+        const expectedNumberFormat = window.OpenCreativeSheets && window.OpenCreativeSheets.numberFormats[style.numberFormat];
+        if (expectedNumberFormat && cell.numFmt !== expectedNumberFormat) {
+          throw new Error("Number format verification failed at " + names[index] + "!" + cellAddress(r,c) + ".");
+        }
         if (expected !== "") checked++;
         if (hasExportStyle(style)) styled++;
       }));
     });
     return {checked, styled};
   };
+  const buildXlsxBuffer = async sheets => {
+    if (!sheets.length || sheets.length > MAX_XLSX_SHEETS) throw new Error("A workbook must contain 1 to " + MAX_XLSX_SHEETS + " worksheets.");
+    let totalCells = 0;
+    sheets.forEach(sheet => {
+      if (!sheet || !Array.isArray(sheet.cells) || sheet.cells.some(row => !Array.isArray(row))) throw new Error("A worksheet contains invalid cell data.");
+      const rowCount = sheet.cells.length, colCount = Math.max(1, ...sheet.cells.map(row => row.length));
+      if (rowCount > MAX_XLSX_ROWS || colCount > MAX_XLSX_COLS) throw new Error("Workbook exceeds the supported export size of " + MAX_XLSX_ROWS + " rows by " + MAX_XLSX_COLS + " columns per sheet.");
+      totalCells += rowCount * colCount;
+    });
+    if (totalCells > MAX_XLSX_CELLS) throw new Error("Workbook exceeds the " + MAX_XLSX_CELLS.toLocaleString() + " cell export limit.");
+    const workbook = new ExcelJS.Workbook(), usedNames = new Set(), names = [];
+    workbook.creator = "OpenCreative";
+    workbook.calcProperties = {fullCalcOnLoad:true, forceFullCalc:true};
+    sheets.forEach((sheet, index) => {
+      const name = safeSheetName(sheet.name, index, usedNames);
+      names.push(name);
+      const worksheet = workbook.addWorksheet(name);
+      sheet.cells.forEach((row, r) => row.forEach((value, c) => {
+        const raw = String(value ?? ""), style = sheet.styles && sheet.styles[r + ":" + c] || {};
+        if (raw === "" && !hasExportStyle(style)) return;
+        const cell = worksheet.getCell(r + 1, c + 1);
+        if (raw.startsWith("=")) cell.value = {formula:raw.slice(1)};
+        else if (raw !== "") {
+          const numericFormat = ["number", "integer", "percent", "currency"].includes(style.numberFormat);
+          const numericValue = Number(raw);
+          cell.value = numericFormat && raw.trim() !== "" && Number.isFinite(numericValue) ? numericValue : raw;
+        }
+        applyExcelJsStyle(cell, style);
+      }));
+    });
+    const bytes = await workbook.xlsx.writeBuffer();
+    const verification = await verifyExcelJsRoundTrip(bytes, sheets, names);
+    return {bytes,names,verification};
+  };
   const exportXlsx = async () => {
     try {
       await ensure(["exceljs"]);
       const sheets = window.OpenCreativeSheets ? window.OpenCreativeSheets.getWorkbook() : [{name:"Sheet1",cells:data.sheet,styles:{}}];
-      if (!sheets.length || sheets.length > MAX_XLSX_SHEETS) throw new Error("A workbook must contain 1 to " + MAX_XLSX_SHEETS + " worksheets.");
-      let totalCells = 0;
-      sheets.forEach(sheet => {
-        if (!sheet || !Array.isArray(sheet.cells) || sheet.cells.some(row => !Array.isArray(row))) {
-          throw new Error("A worksheet contains invalid cell data.");
-        }
-        const rowCount = sheet.cells.length, colCount = Math.max(1, ...sheet.cells.map(row => row.length));
-        if (rowCount > MAX_XLSX_ROWS || colCount > MAX_XLSX_COLS) {
-          throw new Error("Workbook exceeds the supported export size of " + MAX_XLSX_ROWS + " rows by " + MAX_XLSX_COLS + " columns per sheet.");
-        }
-        totalCells += rowCount * colCount;
-      });
-      if (totalCells > MAX_XLSX_CELLS) throw new Error("Workbook exceeds the " + MAX_XLSX_CELLS.toLocaleString() + " cell export limit.");
-      const workbook = new ExcelJS.Workbook(), usedNames = new Set(), names = [];
-      workbook.creator = "OpenCreative";
-      workbook.calcProperties = {fullCalcOnLoad:true, forceFullCalc:true};
-      sheets.forEach((sheet, index) => {
-        const name = safeSheetName(sheet.name, index, usedNames);
-        names.push(name);
-        const worksheet = workbook.addWorksheet(name);
-        sheet.cells.forEach((row, r) => row.forEach((value, c) => {
-          const raw = String(value ?? ""), style = sheet.styles && sheet.styles[r + ":" + c] || {};
-          if (raw === "" && !hasExportStyle(style)) return;
-          const cell = worksheet.getCell(r + 1, c + 1);
-          if (raw.startsWith("=")) cell.value = {formula:raw.slice(1)};
-          else if (raw !== "") cell.value = raw;
-          applyExcelJsStyle(cell, style);
-        }));
-      });
-      const bytes = await workbook.xlsx.writeBuffer();
-      const verification = await verifyExcelJsRoundTrip(bytes, sheets, names);
-      downloadBlob(new Blob([bytes], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}), "opencreative-workbook.xlsx");
-      const renamed = sheets.some((sheet, index) => String(sheet.name || ("Sheet" + (index + 1))) !== names[index]);
-      status("XLSX verified: " + sheets.length + " sheet(s), " + verification.checked + " value/formula cell(s), " + verification.styled + " styled cell(s)." +
+      const built = await buildXlsxBuffer(sheets);
+      downloadBlob(new Blob([built.bytes], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}), "opencreative-workbook.xlsx");
+      const renamed = sheets.some((sheet, index) => String(sheet.name || ("Sheet" + (index + 1))) !== built.names[index]);
+      status("XLSX verified: " + sheets.length + " sheet(s), " + built.verification.checked + " value/formula cell(s), " + built.verification.styled + " styled cell(s)." +
         (renamed ? " Invalid or duplicate sheet names were made unique in the export." : "") +
         " Formulas are set to recalculate when opened in a compatible spreadsheet app.");
     } catch (e) {
       status("XLSX export unavailable");
-      alert("XLSX export failed: " + e.message + (e.message.includes("exceljs") ? " Check your internet connection and try again." : ""));
+      alert("XLSX export failed: " + e.message + (e.message.toLowerCase().includes("exceljs") ? " Check your internet connection and try again." : ""));
     }
   };
-  const importXlsx = async file => {
+  const importXlsx = async (file, apply = true) => {
     try {
       checkFileSize(file, MAX_XLSX_BYTES, "XLSX file");
       await ensure(["xlsx"]);
@@ -366,14 +385,48 @@
         }
         return {name, cells, styles};
       });
-      if (window.OpenCreativeSheets) window.OpenCreativeSheets.setWorkbook(imported);
-      else {
-        data.sheet = imported[0].cells; rows = data.sheet.length; cols = Math.max(1,...data.sheet.map(r=>r.length)); persist(); renderSheet();
+      if (apply) {
+        if (window.OpenCreativeSheets) window.OpenCreativeSheets.setWorkbook(imported);
+        else {
+          data.sheet = imported[0].cells; rows = data.sheet.length; cols = Math.max(1,...imported[0].cells.map(r=>r.length)); persist(); renderSheet();
+        }
+        const styled = imported.reduce((count, sheet) => count + Object.keys(sheet.styles).length, 0);
+        status("Imported " + imported.length + " worksheet(s), " + styled + " styled cell(s) where supported, from " + file.name);
       }
-      const styled = imported.reduce((count, sheet) => count + Object.keys(sheet.styles).length, 0);
-      status("Imported " + imported.length + " worksheet(s), " + styled + " styled cell(s) where supported, from " + file.name);
-    } catch (e) { alert("XLSX import failed: " + e.message + ". The current workbook was not changed."); }
+      return imported;
+    } catch (e) {
+      if (apply) alert("XLSX import failed: " + e.message + ". The current workbook was not changed.");
+      else throw e;
+    }
   };
+  const runOfficeRegressionTests = async () => {
+    const checks = [];
+    const assert = (condition, message) => { if (!condition) throw new Error(message); checks.push(message); };
+    await ensure(["exceljs", "xlsx", "jszip", "mammoth"]);
+    const sample = [{
+      name:"Office regression",
+      cells:[["Metric","Value","Formula"],["Revenue","1250.5","=SUM(B2:B2)"],["Rate","0.125","=B3*100"]],
+      styles:{"1:1":{bold:true,numberFormat:"currency"},"2:1":{numberFormat:"percent"},"1:0":{italic:true}}
+    }];
+    const built = await buildXlsxBuffer(sample);
+    assert(built.verification.checked === 9, "XLSX export reopens with all nine populated values/formulas.");
+    assert(built.verification.styled === 3, "XLSX export verifies bold, italic and number-format styles.");
+    const parsed = await importXlsx(new File([built.bytes], "office-regression.xlsx", {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}), false);
+    assert(parsed.length === 1 && parsed[0].name === "Office regression", "XLSX import restores the worksheet name.");
+    assert(parsed[0].cells[1][2] === "=SUM(B2:B2)" && parsed[0].cells[2][2] === "=B3*100", "XLSX import preserves formula expressions.");
+    assert(parsed[0].styles["1:1"].numberFormat === "currency" && parsed[0].styles["2:1"].numberFormat === "percent", "XLSX import restores supported number formats.");
+    assert(parsed[0].cells[1][1] === "1250.5" && parsed[0].cells[2][1] === "0.125", "XLSX import preserves raw numeric values.");
+    const sampleHtml = '<h1>Regression heading</h1><p><strong>Bold text</strong> and <em>italic text</em>.</p><table><thead><tr><th>Item</th><th>Qty</th></tr></thead><tbody><tr><td>Apples</td><td>3</td></tr></tbody></table>';
+    const docx = await buildDocxBlob(sampleHtml);
+    const converted = await convertDocxBuffer(await docx.arrayBuffer());
+    const doc = new DOMParser().parseFromString(converted.html, "text/html");
+    assert(!!doc.querySelector("h1"), "DOCX export/import preserves a heading.");
+    assert(!!doc.querySelector("strong") && !!doc.querySelector("em"), "DOCX export/import preserves basic emphasis.");
+    assert(doc.querySelectorAll("table tr").length === 2 && doc.querySelectorAll("th").length === 2, "DOCX export/import preserves a simple table and header cells.");
+    return {passed:checks.length,checks};
+  };
+  window.OpenCreativeInteropTests = {run:runOfficeRegressionTests};
+
   const init = () => {
     const docToolbar = document.querySelector("#docs .toolbar");
     const docInput = fileInput("docxImportInput", ".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document", e => {
