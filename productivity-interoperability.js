@@ -10,15 +10,13 @@
     document.head.appendChild(s);
   });
   const deps = {
-    xlsx: "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js",
     mammoth: "https://cdn.jsdelivr.net/npm/mammoth@1.9.0/mammoth.browser.min.js",
     jszip: "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js",
     exceljs: "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"
   };
   const ensure = async (names) => {
     for (const name of names) {
-      const present = name === "xlsx" ? window.XLSX :
-        name === "mammoth" ? window.mammoth :
+      const present = name === "mammoth" ? window.mammoth :
         name === "jszip" ? window.JSZip :
         name === "exceljs" ? window.ExcelJS : null;
       if (!deps[name]) throw new Error("Unknown Office library: " + name);
@@ -53,16 +51,16 @@
     return /^[0-9A-F]{6}$/.test(hex) ? "#" + hex : "";
   };
   const importedStyle = cell => {
-    const source = cell && cell.s || {}, style = {};
-    if (source.font && source.font.bold) style.bold = true;
-    if (source.font && source.font.italic) style.italic = true;
-    const color = xlsxColor(source.font && source.font.color);
-    const fill = xlsxColor(source.fill && source.fill.fgColor) || xlsxColor(source.fill && source.fill.bgColor);
+    const source = cell || {}, style = {}, font = source.font || {}, fill = source.fill || {};
+    if (font.bold) style.bold = true;
+    if (font.italic) style.italic = true;
+    const color = xlsxColor(font.color);
+    const fillColor = xlsxColor(fill.fgColor) || xlsxColor(fill.bgColor);
     const align = source.alignment && source.alignment.horizontal;
     if (color) style.color = color;
-    if (fill) style.background = fill;
+    if (fillColor) style.background = fillColor;
     if (["left", "center", "right"].includes(align)) style.align = align;
-    const numberFormat = window.OpenCreativeSheets && window.OpenCreativeSheets.normalizeNumberFormat(cell.z || "");
+    const numberFormat = window.OpenCreativeSheets && window.OpenCreativeSheets.normalizeNumberFormat(source.numFmt || "");
     if (numberFormat && numberFormat !== "general") style.numberFormat = numberFormat;
     const border = source.border;
     if (border && ["top", "right", "bottom", "left"].some(side => border[side] && border[side].style)) style.border = true;
@@ -234,7 +232,7 @@
     style.bold === true || style.italic === true ||
     styleArgb(style.color) || styleArgb(style.background) ||
     ["left", "center", "right"].includes(style.align) ||
-    ["number", "integer", "percent", "currency"].includes(style.numberFormat) ||
+    ["number", "integer", "percent", "currency", "date", "datetime", "time"].includes(style.numberFormat) ||
     style.border === true
   ));
   const applyExcelJsStyle = (cell, style) => {
@@ -344,7 +342,7 @@
         const cell = worksheet.getCell(r + 1, c + 1);
         if (raw.startsWith("=")) cell.value = {formula:raw.slice(1)};
         else if (raw !== "") {
-          const numericFormat = ["number", "integer", "percent", "currency"].includes(style.numberFormat);
+          const numericFormat = ["number", "integer", "percent", "currency", "date", "datetime", "time"].includes(style.numberFormat);
           const numericValue = Number(raw);
           cell.value = numericFormat && raw.trim() !== "" && Number.isFinite(numericValue) ? numericValue : raw;
         }
@@ -370,30 +368,49 @@
       alert("XLSX export failed: " + e.message + (e.message.toLowerCase().includes("exceljs") ? " Check your internet connection and try again." : ""));
     }
   };
+  const excelDateSerial = date => {
+    const utc = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), date.getUTCHours(), date.getUTCMinutes(), date.getUTCSeconds(), date.getUTCMilliseconds());
+    return String(utc / 86400000 + 25569);
+  };
+  const importedCellValue = cell => {
+    const value = cell.value;
+    if (value instanceof Date) return excelDateSerial(value);
+    if (value && typeof value === "object") {
+      if (typeof value.formula === "string") return "=" + value.formula;
+      if (Array.isArray(value.richText)) return value.richText.map(part => part.text || "").join("");
+      if (value.hyperlink && typeof value.text === "string") return value.text;
+      if (value.error) return String(value.error);
+      if (value.result !== undefined && value.result !== null) return String(value.result);
+      return "";
+    }
+    return String(value ?? "");
+  };
   const importXlsx = async (file, apply = true) => {
     try {
       checkFileSize(file, MAX_XLSX_BYTES, "XLSX file");
-      await ensure(["xlsx"]);
-      const wb = XLSX.read(await file.arrayBuffer(), {type:"array", cellFormula:true, cellStyles:true});
-      if (!wb.SheetNames.length) throw new Error("The workbook has no worksheets.");
-      if (wb.SheetNames.length > MAX_XLSX_SHEETS) throw new Error("Workbook contains more than " + MAX_XLSX_SHEETS + " worksheets.");
+      await ensure(["exceljs"]);
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(await file.arrayBuffer());
+      const worksheets = workbook.worksheets;
+      if (!worksheets.length) throw new Error("The workbook has no worksheets.");
+      if (worksheets.length > MAX_XLSX_SHEETS) throw new Error("Workbook contains more than " + MAX_XLSX_SHEETS + " worksheets.");
       let totalCells = 0;
-      const imported = wb.SheetNames.map(name => {
-        const ws = wb.Sheets[name];
-        const ref = ws["!ref"] || "A1", range = XLSX.utils.decode_range(ref);
-        const rowCount = range.e.r + 1, colCount = range.e.c + 1;
+      const usedNames = new Set();
+      const imported = worksheets.map((worksheet, index) => {
+        const name = safeSheetName(worksheet.name, index, usedNames);
+        const rowCount = Math.max(1, worksheet.rowCount || 1);
+        const colCount = Math.max(1, worksheet.columnCount || 1);
         if (rowCount > MAX_XLSX_ROWS || colCount > MAX_XLSX_COLS) throw new Error("Worksheet '" + name + "' exceeds the supported import size of " + MAX_XLSX_ROWS + " rows by " + MAX_XLSX_COLS + " columns.");
         totalCells += rowCount * colCount;
         if (totalCells > MAX_XLSX_CELLS) throw new Error("Workbook exceeds the " + MAX_XLSX_CELLS.toLocaleString() + " cell import limit.");
         const cells = Array.from({length:rowCount}, () => Array(colCount).fill(""));
         const styles = {};
-        for (let r=range.s.r; r<=range.e.r; r++) {
-          for (let c=range.s.c; c<=range.e.c; c++) {
-            const cell = ws[cellAddress(r,c)];
-            if (!cell) continue;
-            cells[r][c] = cell.f ? "=" + cell.f : String(cell.v ?? cell.w ?? "");
+        for (let r = 1; r <= rowCount; r++) {
+          for (let c = 1; c <= colCount; c++) {
+            const cell = worksheet.getCell(r, c);
+            cells[r - 1][c - 1] = importedCellValue(cell);
             const style = importedStyle(cell);
-            if (Object.keys(style).length) styles[r + ":" + c] = style;
+            if (Object.keys(style).length) styles[(r - 1) + ":" + (c - 1)] = style;
           }
         }
         return {name, cells, styles};
@@ -404,7 +421,7 @@
           data.sheet = imported[0].cells; rows = data.sheet.length; cols = Math.max(1,...imported[0].cells.map(r=>r.length)); persist(); renderSheet();
         }
         const styled = imported.reduce((count, sheet) => count + Object.keys(sheet.styles).length, 0);
-        status("Imported " + imported.length + " worksheet(s), " + styled + " styled cell(s) where supported, from " + file.name);
+        status("Imported " + imported.length + " worksheet(s), " + styled + " styled cell(s), from " + file.name);
       }
       return imported;
     } catch (e) {
@@ -415,27 +432,37 @@
   const runOfficeRegressionTests = async () => {
     const checks = [];
     const assert = (condition, message) => { if (!condition) throw new Error(message); checks.push(message); };
-    await ensure(["exceljs", "xlsx", "jszip", "mammoth"]);
+    await ensure(["exceljs", "jszip", "mammoth"]);
     assert(window.OpenCreativeSheets.normalizeNumberFormat("#,##0.00") === "number" &&
       window.OpenCreativeSheets.normalizeNumberFormat("0.00%") === "percent" &&
-      window.OpenCreativeSheets.normalizeNumberFormat("₹#,##0.00") === "currency",
-      "Recognizes the supported imported and exported number format codes.");
+      window.OpenCreativeSheets.normalizeNumberFormat("₹#,##0.00") === "currency" &&
+      window.OpenCreativeSheets.normalizeNumberFormat("dd/mm/yyyy") === "date" &&
+      window.OpenCreativeSheets.normalizeNumberFormat("dd-mmm-yyyy hh:mm") === "datetime" &&
+      window.OpenCreativeSheets.normalizeNumberFormat("hh:mm") === "time",
+      "Recognizes numeric, currency, date, date-time and time number formats.");
     assert(window.OpenCreativeSheets.formatNumber(0.125, "percent") === "12.50%" &&
       window.OpenCreativeSheets.formatNumber(1250.5, "currency").includes("₹"),
       "Displays percentage and Indian rupee formats in the sheet grid.");
+    assert(window.OpenCreativeSheets.formatNumber(46200, "date").includes("2026") &&
+      window.OpenCreativeSheets.formatNumber(0.5, "time").includes("12:00") &&
+      window.OpenCreativeSheets.formatNumber(46200.5, "datetime").includes("2026"),
+      "Displays Excel date serials and time fractions using a stable UTC conversion.");
     const sample = [{
       name:"Office regression",
-      cells:[["Metric","Value","Formula"],["Revenue","1250.5","=SUM(B2:B2)"],["Rate","0.125","=B3*100"]],
-      styles:{"1:1":{bold:true,numberFormat:"currency",border:true},"2:1":{numberFormat:"percent"},"1:0":{italic:true}}
+      cells:[["Metric","Value","Formula","Date","Time","Date time"],["Revenue","1250.5","=SUM(B2:B2)","46200","0.5","46200.5"],["Rate","0.125","=B3*100","","",""]],
+      styles:{"1:1":{bold:true,numberFormat:"currency",border:true},"2:1":{numberFormat:"percent"},"1:0":{italic:true},"1:3":{numberFormat:"date"},"1:4":{numberFormat:"time"},"1:5":{numberFormat:"datetime"}}
     }];
     const built = await buildXlsxBuffer(sample);
-    assert(built.verification.checked === 9, "XLSX export reopens with all nine populated values/formulas.");
-    assert(built.verification.styled === 3, "XLSX export verifies bold, italic and number-format styles.");
+    assert(built.verification.checked === 15, "XLSX export reopens with all fifteen populated values/formulas.");
+    assert(built.verification.styled === 6, "XLSX export verifies emphasis and all supported numeric/date formats.");
     assert(built.verification.bordered === 1, "XLSX export writes and reopens all four thin cell borders.");
     const parsed = await importXlsx(new File([built.bytes], "office-regression.xlsx", {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}), false);
     assert(parsed.length === 1 && parsed[0].name === "Office regression", "XLSX import restores the worksheet name.");
     assert(parsed[0].cells[1][2] === "=SUM(B2:B2)" && parsed[0].cells[2][2] === "=B3*100", "XLSX import preserves formula expressions.");
-    assert(parsed[0].styles["1:1"].numberFormat === "currency" && parsed[0].styles["2:1"].numberFormat === "percent", "XLSX import restores supported number formats.");
+    assert(parsed[0].styles["1:1"].numberFormat === "currency" && parsed[0].styles["2:1"].numberFormat === "percent" &&
+      parsed[0].styles["1:3"].numberFormat === "date" && parsed[0].styles["1:4"].numberFormat === "time" &&
+      parsed[0].styles["1:5"].numberFormat === "datetime", "XLSX import restores numeric, date, date-time and time formats.");
+    assert(parsed[0].styles["1:1"].border === true, "XLSX import restores thin cell borders from a generated workbook.");
     assert(parsed[0].cells[1][1] === "1250.5" && parsed[0].cells[2][1] === "0.125", "XLSX import preserves raw numeric values.");
     const sampleHtml = '<h1>Regression heading</h1><p><strong>Bold text</strong> and <em>italic text</em>.</p><table><thead><tr><th>Item</th><th>Qty</th></tr></thead><tbody><tr><td>Apples</td><td>3</td></tr></tbody></table>';
     const docx = await buildDocxBlob(sampleHtml);
