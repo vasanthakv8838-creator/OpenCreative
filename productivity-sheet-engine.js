@@ -98,7 +98,7 @@ const parseFormula = (source,stack) => {
   const result=expression();if(p!==t.length)throw Error("Unexpected token");return result;
 };
 val = (r,c,stack=[]) => cellValue(r,c,stack);
-const numberFormats = Object.freeze({general:"General",number:"#,##0.00",integer:"#,##0",percent:"0.00%",currency:"₹#,##0.00"});
+const numberFormats = Object.freeze({general:"General",number:"#,##0.00",integer:"#,##0",percent:"0.00%",currency:"₹#,##0.00",date:"dd-mmm-yyyy",datetime:"dd-mmm-yyyy hh:mm",time:"hh:mm"});
 const normalizeNumberFormat = value => {
   const compact=String(value||"").trim().toLowerCase().replace(/\s/g,"");
   if(!compact||compact==="general")return "general";
@@ -106,6 +106,11 @@ const normalizeNumberFormat = value => {
   if(["#,##0","0"].includes(compact))return "integer";
   if(["0%","0.0%","0.00%"].includes(compact))return "percent";
   if(compact.includes("₹")||compact.includes("inr")||compact.includes("$"))return "currency";
+  const pattern=compact.replace(/"[^"]*"/g,"").replace(/\\./g,"").replace(/\[(?!h+\]|m+\]|s+\])[^\]]*\]/g,"");
+  const hasClock=/[hs]/.test(pattern),hasCalendar=/[yd]/.test(pattern)||(!hasClock&&/[m]/.test(pattern));
+  if(hasClock&&hasCalendar)return "datetime";
+  if(hasClock)return "time";
+  if(hasCalendar)return "date";
   return "";
 };
 const styleFor = (r,c) => activeSheet().styles[r+":"+c] || {};
@@ -115,6 +120,13 @@ const formatNumber = (value, format) => {
   if(format==="integer")return new Intl.NumberFormat("en-IN",{maximumFractionDigits:0}).format(n);
   if(format==="percent")return new Intl.NumberFormat("en-IN",{style:"percent",minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
   if(format==="currency")return new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
+  if(["date","datetime","time"].includes(format)&&n>=0&&n<=2958465){
+    const date=new Date(Date.UTC(1899,11,30)+n*86400000);
+    if(Number.isFinite(date.getTime())){
+      const options=format==="date"?{day:"2-digit",month:"short",year:"numeric"}:format==="time"?{hour:"2-digit",minute:"2-digit",hourCycle:"h23"}:{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",hourCycle:"h23"};
+      return new Intl.DateTimeFormat("en-IN",{...options,timeZone:"UTC"}).format(date);
+    }
+  }
   return String(Number(n.toPrecision(12)));
 };
 const displayValue = (r,c) => {
