@@ -20,7 +20,7 @@ iframe{position:absolute;left:-10000px;top:0;width:1px;height:1px;border:0}
   <h1>Office interoperability regression tests</h1>
   <div class="panel">
     <p>These checks create temporary XLSX and DOCX files in memory, then run them through the same export, import and verification helpers used by OpenCreative Writer and Sheets. Your saved workbook and local productivity data are not changed.</p>
-    <p class="muted">A connection to the configured public CDNs is required to load ExcelJS, SheetJS, Mammoth and JSZip. Serve this repository over HTTP(S), not file://.</p>
+    <p class="muted">A connection to the configured public CDNs is required to load ExcelJS, Mammoth and JSZip. Serve this repository over HTTP(S), not file://.</p>
     <button id="runTests" disabled>Loading test engine…</button>
     <p id="status" role="status" aria-live="polite" class="muted">Loading the productivity workspace test engine.</p>
     <ul id="results"></ul>
