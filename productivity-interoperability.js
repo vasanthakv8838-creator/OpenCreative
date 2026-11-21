@@ -282,8 +282,14 @@
           if (String(formula || "") !== expected.slice(1)) {
             throw new Error("Formula verification failed at " + names[index] + "!" + cellAddress(r,c) + ".");
           }
-        } else if (expected !== "" && String(cell.value ?? "") !== expected) {
-          throw new Error("Value verification failed at " + names[index] + "!" + cellAddress(r,c) + ".");
+        } else if (expected !== "") {
+          const actual = cell.value instanceof Date ? Number(excelDateSerial(cell.value)) : cell.value;
+          const expectedNumber = Number(expected);
+          const numericMatch = typeof actual === "number" && expected.trim() !== "" &&
+            Number.isFinite(expectedNumber) && Math.abs(actual - expectedNumber) < 1e-8;
+          if (!numericMatch && String(actual ?? "") !== expected) {
+            throw new Error("Value verification failed at " + names[index] + "!" + cellAddress(r,c) + ".");
+          }
         }
         if (style.bold === true && cell.font.bold !== true) {
           throw new Error("Bold formatting verification failed at " + names[index] + "!" + cellAddress(r,c) + ".");
