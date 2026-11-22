@@ -40,8 +40,44 @@
   const MAX_XLSX_ROWS = 5000;
   const MAX_XLSX_COLS = 256;
   const MAX_XLSX_SHEETS = 50;
+  const MAX_ARCHIVE_ENTRIES = 12000;
+  const ARCHIVE_LIMITS = {
+    docx: {total:60 * 1024 * 1024, entry:25 * 1024 * 1024},
+    xlsx: {total:120 * 1024 * 1024, entry:50 * 1024 * 1024}
+  };
   const checkFileSize = (file, limit, label) => {
     if (file && Number(file.size) > limit) throw new Error(label + " exceeds the " + Math.round(limit / 1024 / 1024) + " MB import limit.");
+  };
+  const inspectOfficeArchive = async (buffer, kind) => {
+    const limits = ARCHIVE_LIMITS[kind];
+    if (!limits) throw new Error("Unsupported Office archive type.");
+    await ensure(["jszip"]);
+    const zip = await JSZip.loadAsync(buffer, {checkCRC32:false});
+    const files = Object.entries(zip.files).filter(([, entry]) => !entry.dir);
+    if (files.length > MAX_ARCHIVE_ENTRIES) throw new Error("Office archive contains too many files.");
+    const required = kind === "docx" ? ["[Content_Types].xml", "word/document.xml"] :
+      ["[Content_Types].xml", "xl/workbook.xml"];
+    for (const path of required) {
+      if (!zip.files[path] || zip.files[path].dir) throw new Error("This is not a valid " + kind.toUpperCase() + " package: missing " + path + ".");
+    }
+    let total = 0;
+    for (const [path, entry] of files) {
+      if (path.startsWith("/") || path.includes("\\") || path.split("/").includes("..")) {
+        throw new Error("Office archive contains an unsafe file path.");
+      }
+      const metadata = entry._data || {};
+      const expanded = Number(metadata.uncompressedSize), compressed = Number(metadata.compressedSize);
+      if (!Number.isFinite(expanded) || expanded < 0 || !Number.isFinite(compressed) || compressed < 0) {
+        throw new Error("Office archive contains invalid size metadata.");
+      }
+      if (expanded > limits.entry) throw new Error("Office archive contains an oversized file entry.");
+      total += expanded;
+      if (total > limits.total) throw new Error("Office archive expands beyond the supported " + Math.round(limits.total / 1024 / 1024) + " MB safety limit.");
+      if (expanded > 1024 * 1024 && (compressed === 0 || expanded / Math.max(1, compressed) > 250)) {
+        throw new Error("Office archive has a suspicious compression ratio and was rejected.");
+      }
+    }
+    return {entries:files.length, uncompressedBytes:total};
   };
   const xlsxColor = value => {
     const raw = typeof value === "string" ? value : value && (value.rgb || value.argb);
@@ -207,6 +243,7 @@
     return out.innerHTML;
   };
   const convertDocxBuffer = async arrayBuffer => {
+    await inspectOfficeArchive(arrayBuffer, "docx");
     await ensure(["mammoth"]);
     const result = await mammoth.convertToHtml({arrayBuffer});
     return {html:cleanImportedHtml(result.value),messages:result.messages || []};
@@ -394,9 +431,11 @@
   const importXlsx = async (file, apply = true) => {
     try {
       checkFileSize(file, MAX_XLSX_BYTES, "XLSX file");
+      const buffer = await file.arrayBuffer();
+      await inspectOfficeArchive(buffer, "xlsx");
       await ensure(["exceljs"]);
       const workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.load(await file.arrayBuffer());
+      await workbook.xlsx.load(buffer);
       const worksheets = workbook.worksheets;
       if (!worksheets.length) throw new Error("The workbook has no worksheets.");
       if (worksheets.length > MAX_XLSX_SHEETS) throw new Error("Workbook contains more than " + MAX_XLSX_SHEETS + " worksheets.");
@@ -464,6 +503,40 @@
     assert(built.verification.bordered === 1, "XLSX export writes and reopens all four thin cell borders.");
     const parsed = await importXlsx(new File([built.bytes], "office-regression.xlsx", {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}), false);
     assert(parsed.length === 1 && parsed[0].name === "Office regression", "XLSX import restores the worksheet name.");
+    const externalWorkbook = new ExcelJS.Workbook();
+    const externalFirst = externalWorkbook.addWorksheet("External fixture");
+    externalFirst.getCell("C3").value = "Sparse cell";
+    externalFirst.getCell("D3").value = {formula:"1+2", result:3};
+    externalFirst.getCell("C3").font = {bold:true};
+    externalFirst.getCell("C3").numFmt = "dd/mm/yyyy";
+    const externalSecond = externalWorkbook.addWorksheet("Second sheet");
+    externalSecond.getCell("B2").value = 42;
+    externalSecond.getCell("B2").fill = {type:"pattern", pattern:"solid", fgColor:{argb:"FFFFCC00"}};
+    const externalBytes = await externalWorkbook.xlsx.writeBuffer();
+    const beforeImport = JSON.stringify(window.OpenCreativeSheets.getWorkbook());
+    const externalParsed = await importXlsx(new File([externalBytes], "external-fixture.xlsx", {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}), false);
+    assert(externalParsed.length === 2 && externalParsed[0].cells.length === 3 && externalParsed[0].cells[2][2] === "Sparse cell" &&
+      externalParsed[0].cells[2][3] === "=1+2", "Independent XLSX fixture preserves multiple sheets, sparse C3 coordinates and formulas.");
+    assert(externalParsed[0].styles["2:2"].bold === true && externalParsed[0].styles["2:2"].numberFormat === "date" &&
+      externalParsed[1].cells[1][1] === "42" && externalParsed[1].styles["1:1"].background === "#FFCC00",
+      "Independent XLSX fixture restores font, date, fill and numeric cell data.");
+    assert(JSON.stringify(window.OpenCreativeSheets.getWorkbook()) === beforeImport,
+      "Non-applying XLSX regression imports leave the user's active workbook unchanged.");
+    const validAudit = await inspectOfficeArchive(await docx.arrayBuffer(), "docx");
+    assert(validAudit.entries >= 3 && validAudit.uncompressedBytes > 0, "DOCX archive preflight accepts a valid generated document.");
+    const invalidZip = new JSZip();
+    invalidZip.file("[Content_Types].xml", "<Types/>");
+    const invalidBytes = await invalidZip.generateAsync({type:"arraybuffer"});
+    let invalidRejected = false;
+    try { await inspectOfficeArchive(invalidBytes, "docx"); } catch (error) { invalidRejected = /missing word\\/document.xml/.test(error.message); }
+    assert(invalidRejected, "Office archive preflight rejects packages missing their main document part.");
+    const compressedZip = new JSZip();
+    compressedZip.file("[Content_Types].xml", "<Types/>");
+    compressedZip.file("word/document.xml", "x".repeat(2 * 1024 * 1024));
+    const compressedBytes = await compressedZip.generateAsync({type:"arraybuffer", compression:"DEFLATE", compressionOptions:{level:9}});
+    let bombRejected = false;
+    try { await inspectOfficeArchive(compressedBytes, "docx"); } catch (error) { bombRejected = /compression ratio/.test(error.message); }
+    assert(bombRejected, "Office archive preflight rejects highly compressed oversized document parts.");
     assert(parsed[0].cells[1][2] === "=SUM(B2:B2)" && parsed[0].cells[2][2] === "=B3*100", "XLSX import preserves formula expressions.");
     assert(parsed[0].styles["1:1"].numberFormat === "currency" && parsed[0].styles["2:1"].numberFormat === "percent" &&
       parsed[0].styles["1:3"].numberFormat === "date" && parsed[0].styles["1:4"].numberFormat === "time" &&
