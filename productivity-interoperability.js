@@ -522,13 +522,13 @@
       "Independent XLSX fixture restores font, date, fill and numeric cell data.");
     assert(JSON.stringify(window.OpenCreativeSheets.getWorkbook()) === beforeImport,
       "Non-applying XLSX regression imports leave the user's active workbook unchanged.");
-    const validAudit = await inspectOfficeArchive(await docx.arrayBuffer(), "docx");
-    assert(validAudit.entries >= 3 && validAudit.uncompressedBytes > 0, "DOCX archive preflight accepts a valid generated document.");
+    const validAudit = await inspectOfficeArchive(built.bytes, "xlsx");
+    assert(validAudit.entries >= 5 && validAudit.uncompressedBytes > 0, "XLSX archive preflight accepts a valid generated workbook.");
     const invalidZip = new JSZip();
     invalidZip.file("[Content_Types].xml", "<Types/>");
     const invalidBytes = await invalidZip.generateAsync({type:"arraybuffer"});
     let invalidRejected = false;
-    try { await inspectOfficeArchive(invalidBytes, "docx"); } catch (error) { invalidRejected = /missing word\\/document.xml/.test(error.message); }
+    try { await inspectOfficeArchive(invalidBytes, "docx"); } catch (error) { invalidRejected = error.message.includes("missing word/document.xml"); }
     assert(invalidRejected, "Office archive preflight rejects packages missing their main document part.");
     const compressedZip = new JSZip();
     compressedZip.file("[Content_Types].xml", "<Types/>");
@@ -545,6 +545,8 @@
     assert(parsed[0].cells[1][1] === "1250.5" && parsed[0].cells[2][1] === "0.125", "XLSX import preserves raw numeric values.");
     const sampleHtml = '<h1>Regression heading</h1><p><strong>Bold text</strong> and <em>italic text</em>.</p><table><thead><tr><th>Item</th><th>Qty</th></tr></thead><tbody><tr><td>Apples</td><td>3</td></tr></tbody></table>';
     const docx = await buildDocxBlob(sampleHtml);
+    const validDocxAudit = await inspectOfficeArchive(await docx.arrayBuffer(), "docx");
+    assert(validDocxAudit.entries >= 4 && validDocxAudit.uncompressedBytes > 0, "DOCX archive preflight accepts a valid generated document.");
     const converted = await convertDocxBuffer(await docx.arrayBuffer());
     const doc = new DOMParser().parseFromString(converted.html, "text/html");
     assert(!!doc.querySelector("h1"), "DOCX export/import preserves a heading.");
