@@ -1,5 +1,5 @@
 import http from "node:http";
-import {promises as fs} from "node:fs";
+import {createReadStream, promises as fs} from "node:fs";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {chromium} from "playwright";
@@ -30,7 +30,7 @@ const server = http.createServer(async (req, res) => {
       "Cache-Control":"no-store",
       "X-Content-Type-Options":"nosniff"
     });
-    fs.createReadStream(target).pipe(res);
+    createReadStream(target).pipe(res);
   } catch {
     res.writeHead(404, {"Content-Type":"text/plain; charset=utf-8"}).end("Not found");
   }
@@ -43,7 +43,7 @@ try {
     server.listen(0, "127.0.0.1", resolve);
   });
   const address = server.address();
-  const url = `http://127.0.0.1:${address.port}/tests/office-interoperability.html`;
+  const url = "http://127.0.0.1:" + address.port + "/tests/office-interoperability.html";
   browser = await chromium.launch({headless:true});
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -51,7 +51,7 @@ try {
   const cdnFailures = [];
   page.on("pageerror", error => pageErrors.push(error.message));
   page.on("requestfailed", request => {
-    if (/cdn\\.jsdelivr\\.net/i.test(request.url())) cdnFailures.push(request.url() + " — " + (request.failure()?.errorText || "request failed"));
+    if (/cdn\.jsdelivr\.net/i.test(request.url())) cdnFailures.push(request.url() + " — " + (request.failure()?.errorText || "request failed"));
   });
 
   console.log("Opening " + url);
@@ -65,20 +65,20 @@ try {
   const runButton = page.locator("#runTests");
   if (!(await runButton.isEnabled())) {
     const status = await page.locator("#status").textContent();
-    throw new Error("Office test engine did not become ready: " + status + (cdnFailures.length ? "\\nCDN failures: " + cdnFailures.join("; ") : ""));
+    throw new Error("Office test engine did not become ready: " + status + (cdnFailures.length ? "\nCDN failures: " + cdnFailures.join("; ") : ""));
   }
 
   await runButton.click();
   await page.waitForFunction(() => {
     const status = document.querySelector("#status")?.textContent || "";
-    return /^\\d+ regression checks passed\\.$/.test(status) || status.includes("Regression run failed");
+    return /^\d+ regression checks passed\.$/.test(status) || status.includes("Regression run failed");
   }, null, {timeout:120000});
 
   const status = (await page.locator("#status").textContent() || "").trim();
   const checks = await page.locator("#results li.pass").allTextContents();
   const failures = await page.locator("#results li.fail").allTextContents();
-  if (failures.length || !/^\\d+ regression checks passed\\.$/.test(status)) {
-    throw new Error(status + (failures.length ? "\\n" + failures.join("\\n") : ""));
+  if (failures.length || !/^\d+ regression checks passed\.$/.test(status)) {
+    throw new Error(status + (failures.length ? "\n" + failures.join("\n") : ""));
   }
   if (pageErrors.length) throw new Error("Uncaught browser errors: " + pageErrors.join("; "));
   console.log(status);
