@@ -177,7 +177,12 @@
     const columnWidth = Math.max(1, Math.floor(9360 / columnCount));
     const grid = Array.from({length:columnCount}, () => '<w:gridCol w:w="' + columnWidth + '"/>').join("");
     const borders = '<w:tblBorders><w:top w:val="single" w:sz="4" w:color="B7C0CE"/><w:left w:val="single" w:sz="4" w:color="B7C0CE"/><w:bottom w:val="single" w:sz="4" w:color="B7C0CE"/><w:right w:val="single" w:sz="4" w:color="B7C0CE"/><w:insideH w:val="single" w:sz="4" w:color="B7C0CE"/><w:insideV w:val="single" w:sz="4" w:color="B7C0CE"/></w:tblBorders>';
-    const body = rows.map(row => "<w:tr>" + [...row.children].filter(cell => ["td","th"].includes(cell.tagName.toLowerCase())).map(tableCellXml).join("") + "</w:tr>").join("");
+    const body = rows.map(row => {
+      const cells = [...row.children].filter(cell => ["td","th"].includes(cell.tagName.toLowerCase()));
+      const header = cells.some(cell => cell.tagName.toLowerCase() === "th");
+      const rowProperties = header ? "<w:trPr><w:tblHeader/></w:trPr>" : "";
+      return "<w:tr>" + rowProperties + cells.map(tableCellXml).join("") + "</w:tr>";
+    }).join("");
     return '<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/>' + borders + '</w:tblPr><w:tblGrid>' + grid + '</w:tblGrid>' + body + '</w:tbl>';
   };
   const blockXml = (node) => {
@@ -242,11 +247,44 @@
     [...parsed.body.childNodes].forEach(n => { const c = cleanNode(n); if (c) out.append(c); });
     return out.innerHTML;
   };
+  const restoreDocxHeaderCells = async (html, arrayBuffer) => {
+    const zip = await JSZip.loadAsync(arrayBuffer, {checkCRC32:false});
+    const documentFile = zip.file("word/document.xml");
+    if (!documentFile) return html;
+    const xmlText = await documentFile.async("string");
+    const xml = new DOMParser().parseFromString(xmlText, "application/xml");
+    if (xml.querySelector("parsererror")) return html;
+    const wordNs = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+    const headerRows = [...xml.getElementsByTagNameNS(wordNs, "tbl")].map(table =>
+      [...table.children].filter(row => row.namespaceURI === wordNs && row.localName === "tr").map(row =>
+        row.getElementsByTagNameNS(wordNs, "tblHeader").length > 0
+      )
+    );
+    const parsed = new DOMParser().parseFromString(html, "text/html");
+    const tables = [...parsed.body.querySelectorAll("table")];
+    headerRows.forEach((flags, tableIndex) => {
+      const table = tables[tableIndex];
+      if (!table) return;
+      const rows = [...table.rows];
+      flags.forEach((isHeader, rowIndex) => {
+        if (!isHeader || !rows[rowIndex]) return;
+        [...rows[rowIndex].cells].forEach(cell => {
+          if (cell.tagName.toLowerCase() === "th") return;
+          const header = parsed.createElement("th");
+          [...cell.attributes].forEach(attribute => header.setAttribute(attribute.name, attribute.value));
+          header.innerHTML = cell.innerHTML;
+          cell.replaceWith(header);
+        });
+      });
+    });
+    return parsed.body.innerHTML;
+  };
   const convertDocxBuffer = async arrayBuffer => {
     await inspectOfficeArchive(arrayBuffer, "docx");
     await ensure(["mammoth"]);
     const result = await mammoth.convertToHtml({arrayBuffer});
-    return {html:cleanImportedHtml(result.value),messages:result.messages || []};
+    const withHeaders = await restoreDocxHeaderCells(result.value, arrayBuffer);
+    return {html:cleanImportedHtml(withHeaders),messages:result.messages || []};
   };
   const importDocx = async (file) => {
     try {
