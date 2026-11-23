@@ -24,7 +24,7 @@ permissions:
 jobs:
   chromium-regression:
     name: DOCX and XLSX browser regression
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: Check out repository
@@ -32,7 +32,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - name: Install Playwright
         run: npm install --no-save --no-package-lock playwright@1.56.1
       - name: Install Chromium
