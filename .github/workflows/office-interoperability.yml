@@ -1,0 +1,41 @@
+name: Office interoperability
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "productivity.html"
+      - "productivity-sheet-engine.js"
+      - "productivity-interoperability.js"
+      - "tests/**"
+      - ".github/workflows/office-interoperability.yml"
+  pull_request:
+    paths:
+      - "productivity.html"
+      - "productivity-sheet-engine.js"
+      - "productivity-interoperability.js"
+      - "tests/**"
+      - ".github/workflows/office-interoperability.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chromium-regression:
+    name: DOCX and XLSX browser regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Playwright
+        run: npm install --no-save --no-package-lock playwright@1.56.1
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run Office regression tests
+        run: node tests/run-office-regression.mjs
