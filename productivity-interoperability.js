@@ -583,6 +583,15 @@
     let traversalRejected = false;
     try { await inspectOfficeArchive(traversalBytes, "docx"); } catch (error) { traversalRejected = /unsafe file path/.test(error.message); }
     assert(traversalRejected, "Office archive preflight rejects original ZIP traversal paths after JSZip path normalization.");
+    const xlsxTraversalZip = new JSZip();
+    xlsxTraversalZip.file("[Content_Types].xml", "<Types/>");
+    xlsxTraversalZip.file("xl/workbook.xml", "<workbook/>");
+    xlsxTraversalZip.file("xl/worksheets/sheet1.xml", "<worksheet/>");
+    xlsxTraversalZip.file("folder/../../outside.txt", "unsafe path");
+    const xlsxTraversalBytes = await xlsxTraversalZip.generateAsync({type:"arraybuffer"});
+    let xlsxTraversalRejected = false;
+    try { await inspectOfficeArchive(xlsxTraversalBytes, "xlsx"); } catch (error) { xlsxTraversalRejected = /unsafe file path/.test(error.message); }
+    assert(xlsxTraversalRejected, "XLSX archive preflight rejects original nested ZIP traversal paths.");
     const compressedZip = new JSZip();
     compressedZip.file("[Content_Types].xml", "<Types/>");
     compressedZip.file("word/document.xml", "x".repeat(2 * 1024 * 1024));
