@@ -62,7 +62,14 @@
     }
     let total = 0;
     for (const [path, entry] of files) {
-      if (path.startsWith("/") || path.includes("\\") || path.split("/").includes("..")) {
+      const originalPath = String(entry.unsafeOriginalName || path);
+      const isUnsafePath = value => {
+        const candidate = String(value || "");
+        const normalized = candidate.replace(/\\/g, "/");
+        return candidate.startsWith("/") || /^[A-Za-z]:/.test(candidate) ||
+          candidate.includes("\\") || normalized.split("/").includes("..");
+      };
+      if (isUnsafePath(path) || isUnsafePath(originalPath)) {
         throw new Error("Office archive contains an unsafe file path.");
       }
       const metadata = entry._data || {};
@@ -568,6 +575,14 @@
     let invalidRejected = false;
     try { await inspectOfficeArchive(invalidBytes, "docx"); } catch (error) { invalidRejected = error.message.includes("missing word/document.xml"); }
     assert(invalidRejected, "Office archive preflight rejects packages missing their main document part.");
+    const traversalZip = new JSZip();
+    traversalZip.file("[Content_Types].xml", "<Types/>");
+    traversalZip.file("word/document.xml", "<w:document/>");
+    traversalZip.file("../outside.txt", "unsafe path");
+    const traversalBytes = await traversalZip.generateAsync({type:"arraybuffer"});
+    let traversalRejected = false;
+    try { await inspectOfficeArchive(traversalBytes, "docx"); } catch (error) { traversalRejected = /unsafe file path/.test(error.message); }
+    assert(traversalRejected, "Office archive preflight rejects original ZIP traversal paths after JSZip path normalization.");
     const compressedZip = new JSZip();
     compressedZip.file("[Content_Types].xml", "<Types/>");
     compressedZip.file("word/document.xml", "x".repeat(2 * 1024 * 1024));
