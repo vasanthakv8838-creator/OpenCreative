@@ -464,7 +464,11 @@
     const value = cell.value;
     if (value instanceof Date) return excelDateSerial(value);
     if (value && typeof value === "object") {
-      if (typeof value.formula === "string") return "=" + value.formula;
+      // ExcelJS resolves shared-formula followers through cell.formula.
+      // Prefer that translated expression, then fall back to the raw formula object.
+      const formula = typeof cell.formula === "string" ? cell.formula :
+        (typeof value.formula === "string" ? value.formula : "");
+      if (formula) return "=" + formula;
       if (Array.isArray(value.richText)) return value.richText.map(part => part.text || "").join("");
       if (value.hyperlink && typeof value.text === "string") return value.text;
       if (value.error) return String(value.error);
@@ -557,11 +561,15 @@
     const externalSecond = externalWorkbook.addWorksheet("Second sheet");
     externalSecond.getCell("B2").value = 42;
     externalSecond.getCell("B2").fill = {type:"pattern", pattern:"solid", fgColor:{argb:"FFFFCC00"}};
+    // Shared-formula followers must be expanded to their own cell-relative formula.
+    externalFirst.getCell("E2").value = {formula:"SUM(A2:A2)", result:3};
+    externalFirst.getCell("E3").value = {sharedFormula:"E2", result:6};
     const externalBytes = await externalWorkbook.xlsx.writeBuffer();
     const beforeImport = JSON.stringify(window.OpenCreativeSheets.getWorkbook());
     const externalParsed = await importXlsx(new File([externalBytes], "external-fixture.xlsx", {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}), false);
     assert(externalParsed.length === 2 && externalParsed[0].cells.length === 3 && externalParsed[0].cells[2][2] === "Sparse cell" &&
-      externalParsed[0].cells[2][3] === "=1+2", "Independent XLSX fixture preserves multiple sheets, sparse C3 coordinates and formulas.");
+      externalParsed[0].cells[2][3] === "=1+2" && externalParsed[0].cells[1][4] === "=SUM(A2:A2)" &&
+      externalParsed[0].cells[2][4] === "=SUM(A3:A3)", "Independent XLSX fixture preserves sparse coordinates, ordinary formulas and translated shared-formula followers.");
     assert(externalParsed[0].styles["2:2"].bold === true && externalParsed[0].styles["2:2"].numberFormat === "date" &&
       externalParsed[1].cells[1][1] === "42" && externalParsed[1].styles["1:1"].background === "#FFCC00",
       "Independent XLSX fixture restores font, date, fill and numeric cell data.");
