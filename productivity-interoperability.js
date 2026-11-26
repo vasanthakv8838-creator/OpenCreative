@@ -564,12 +564,13 @@
     // Shared-formula followers must be expanded to their own cell-relative formula.
     externalFirst.getCell("E2").value = {formula:"SUM(A2:A2)", result:3};
     externalFirst.getCell("E3").value = {sharedFormula:"E2", result:6};
+    externalFirst.getCell("F2").value = {error:"#DIV/0!"};
     const externalBytes = await externalWorkbook.xlsx.writeBuffer();
     const beforeImport = JSON.stringify(window.OpenCreativeSheets.getWorkbook());
     const externalParsed = await importXlsx(new File([externalBytes], "external-fixture.xlsx", {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}), false);
     assert(externalParsed.length === 2 && externalParsed[0].cells.length === 3 && externalParsed[0].cells[2][2] === "Sparse cell" &&
       externalParsed[0].cells[2][3] === "=1+2" && externalParsed[0].cells[1][4] === "=SUM(A2:A2)" &&
-      externalParsed[0].cells[2][4] === "=SUM(A3:A3)", "Independent XLSX fixture preserves sparse coordinates, ordinary formulas and translated shared-formula followers.");
+      externalParsed[0].cells[2][4] === "=SUM(A3:A3)" && externalParsed[0].cells[1][5] === "#DIV/0!", "Independent XLSX fixture preserves sparse coordinates, ordinary formulas, translated shared-formula followers and cached cell error values.");
     assert(externalParsed[0].styles["2:2"].bold === true && externalParsed[0].styles["2:2"].numberFormat === "date" &&
       externalParsed[1].cells[1][1] === "42" && externalParsed[1].styles["1:1"].background === "#FFCC00",
       "Independent XLSX fixture restores font, date, fill and numeric cell data.");
