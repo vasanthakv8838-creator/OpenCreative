@@ -22,6 +22,7 @@ syncSheet();
 const colLetters = n => {let out="";for(n++;n;n=Math.floor((n-1)/26))out=String.fromCharCode(65+(n-1)%26)+out;return out;};
 const parseRef = ref => {const m=/^([A-Z]+)([1-9]\d*)$/i.exec(ref);if(!m)throw Error("Bad reference");let c=0;for(const ch of m[1].toUpperCase())c=c*26+ch.charCodeAt(0)-64;return {r:Number(m[2])-1,c:c-1};};
 const rawAt = (r,c) => String(activeSheet().cells[r]?.[c] ?? "");
+const isFormulaError = value => typeof value==="string" && /^#(?:DIV\/0!|VALUE!|REF!|NAME\?|NUM!|N\/A|CYCLE|ERROR)$/.test(value);
 const cellValue = (r,c,stack=[]) => {
   const raw=rawAt(r,c); if(!raw.startsWith("=")) return raw.trim()!=="" && Number.isFinite(Number(raw)) ? Number(raw) : raw;
   const key=r+":"+c; if(stack.includes(key))return "#CYCLE";
@@ -50,7 +51,7 @@ const parseFormula = (source,stack) => {
   const expect=v=>{if(!accept(v))throw Error("Expected "+v);};
   const flatten=x=>Array.isArray(x)?x.flat(Infinity):[x];
   const refVal=ref=>{const q=parseRef(ref);return cellValue(q.r,q.c,stack);};
-  const compare=(a,op,b)=>{const x=typeof a==="number"?a:String(a).toLowerCase(),y=typeof b==="number"?b:String(b).toLowerCase();switch(op){case"=":case"==":return x===y;case"<>":case"!=":return x!==y;case">":return x>y;case"<":return x<y;case">=":return x>=y;case"<=":return x<=y;}};
+  const compare=(a,op,b)=>{if(isFormulaError(a))return a;if(isFormulaError(b))return b;const x=typeof a==="number"?a:String(a).toLowerCase(),y=typeof b==="number"?b:String(b).toLowerCase();switch(op){case"=":case"==":return x===y;case"<>":case"!=":return x!==y;case">":return x>y;case"<":return x<y;case">=":return x>=y;case"<=":return x<=y;}};
   const primary=()=>{
     const token=take();if(!token)throw Error("Missing value");
     if(token.type==="number"||token.type==="string")return token.value;
@@ -62,7 +63,7 @@ const parseFormula = (source,stack) => {
       if(token.value==="TRUE")return true;if(token.value==="FALSE")return false;
       if(!accept("("))throw Error("Unknown name");
       const args=[];if(!accept(")")){do{args.push(expression())}while(accept(","));expect(")");}
-      const flat=args.flat(Infinity), nums=flat.filter(v=>typeof v==="number"&&Number.isFinite(v));
+      const flat=args.flat(Infinity), formulaError=flat.find(isFormulaError);if(formulaError)return formulaError;const nums=flat.filter(v=>typeof v==="number"&&Number.isFinite(v));
       const fn=token.value;
       switch(fn){
         case"SUM":return nums.reduce((a,b)=>a+b,0);
@@ -91,9 +92,9 @@ const parseFormula = (source,stack) => {
     throw Error("Invalid expression");
   };
   const unary=()=>primary();
-  const power=()=>{let a=unary();if(accept("^"))a=Math.pow(Number(a),Number(power()));return a;};
-  const product=()=>{let a=power();while(peek()&&["*","/","%"].includes(peek().value)){const op=take().value,b=Number(power());a=op==="*"?Number(a)*b:op==="/"?Number(a)/b:Number(a)%b;}return a;};
-  const sum=()=>{let a=product();while(peek()&&["+","-"].includes(peek().value)){const op=take().value,b=Number(product());a=op==="+"?Number(a)+b:Number(a)-b;}return a;};
+  const power=()=>{let a=unary();if(isFormulaError(a))return a;if(accept("^")){const b=power();if(isFormulaError(b))return b;a=Math.pow(Number(a),Number(b));}return a;};
+  const product=()=>{let a=power();while(peek()&&["*","/","%"].includes(peek().value)){const op=take().value,b=power();if(isFormulaError(a))return a;if(isFormulaError(b))return b;if((op==="/"||op==="%")&&Number(b)===0)return "#DIV/0!";a=op==="*"?Number(a)*Number(b):op==="/"?Number(a)/Number(b):Number(a)%Number(b);}return a;};
+  const sum=()=>{let a=product();while(peek()&&["+","-"].includes(peek().value)){const op=take().value,b=product();if(isFormulaError(a))return a;if(isFormulaError(b))return b;a=op==="+"?Number(a)+Number(b):Number(a)-Number(b);}return a;};
   const expression=()=>{let a=sum();while(peek()&&[">","<",">=","<=","=","==","<>","!="].includes(peek().value)){const op=take().value;a=compare(a,op,sum());}return a;};
   const result=expression();if(p!==t.length)throw Error("Unexpected token");return result;
 };
@@ -212,6 +213,7 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
 window.OpenCreativeSheets={
   numberFormats,normalizeNumberFormat,formatNumber,
   getWorkbook:()=>data.sheets.map(s=>({name:s.name,cells:s.cells,styles:s.styles})),
+  evaluateCell:(r,c)=>cellValue(Number(r),Number(c)),
   setWorkbook:sheets=>{if(!Array.isArray(sheets)||!sheets.length)throw Error("Workbook needs at least one sheet");data.sheets=sheets.map((s,i)=>({id:"import-"+i+"-"+Date.now(),name:String(s.name||"Sheet"+(i+1)).slice(0,31),cells:s.cells,styles:s.styles||{}}));activeSheetId=data.sheets[0].id;syncSheet();persist();renderSheet();},
   setImportedStyles:(sheetIndex,styles)=>{if(data.sheets[sheetIndex])data.sheets[sheetIndex].styles=styles||{};persist();renderSheet();}
 };
