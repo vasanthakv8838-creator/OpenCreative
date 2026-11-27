@@ -537,6 +537,13 @@
     assert(window.OpenCreativeSheets.formatNumber(0.125, "percent") === "12.50%" &&
       window.OpenCreativeSheets.formatNumber(1250.5, "currency").includes("₹"),
       "Displays percentage and Indian rupee formats in the sheet grid.");
+    const originalWorkbook = window.OpenCreativeSheets.getWorkbook();
+    window.OpenCreativeSheets.setWorkbook([{name:"Formula error checks",cells:[["#DIV/0!","=1/0","=A1+2","=SUM(A1:A1)"]],styles:{}}]);
+    assert(window.OpenCreativeSheets.evaluateCell(0,1) === "#DIV/0!" &&
+      window.OpenCreativeSheets.evaluateCell(0,2) === "#DIV/0!" &&
+      window.OpenCreativeSheets.evaluateCell(0,3) === "#DIV/0!",
+      "Formula division-by-zero errors and referenced/range errors propagate as #DIV/0!.");
+    window.OpenCreativeSheets.setWorkbook(originalWorkbook);
     assert(window.OpenCreativeSheets.formatNumber(46200, "date").includes("2026") &&
       window.OpenCreativeSheets.formatNumber(0.5, "time").includes("12:00") &&
       window.OpenCreativeSheets.formatNumber(46200.5, "datetime").includes("2026"),
