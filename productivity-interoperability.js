@@ -622,8 +622,8 @@
     assert(parsed[0].styles["1:1"].border === true, "XLSX import restores thin cell borders from a generated workbook.");
     assert(parsed[0].cells[1][1] === "1250.5" && parsed[0].cells[2][1] === "0.125", "XLSX import preserves raw numeric values.");
     const originalWorkbook = window.OpenCreativeSheets.getWorkbook();
-    window.OpenCreativeSheets.setWorkbook([{name:"Formula errors",cells:[["=1+\"text\"","=SQRT(-1)","=2^1024","=--1","=1/0"],["=#REF!+1","=ABS(-4)","=POWER(10,400)","=1+TRUE","=1+2"]],styles:{}}]);
-    const formulaResults = ["#VALUE!","#NUM!","#NUM!","#ERROR","#DIV/0!","#REF!",4,"#NUM!",2,3].map((expected,index)=>({expected,actual:window.OpenCreativeSheets.evaluateCell(index<5?0:1,index%5)}));
+    window.OpenCreativeSheets.setWorkbook([{name:"Formula errors",cells:[["=1+\"text\"","=SQRT(-1)","=2^1024","=--1","=1/0"],["#REF!","=A2+1","=ABS(-4)","=POWER(10,400)","=1+TRUE"]],styles:{}}]);
+    const formulaResults = ["#VALUE!","#NUM!","#NUM!",1,"#DIV/0!","#REF!","#REF!",4,"#NUM!",2].map((expected,index)=>({expected,actual:window.OpenCreativeSheets.evaluateCell(index<5?0:1,index%5)}));
     window.OpenCreativeSheets.setWorkbook(originalWorkbook);
     formulaResults.forEach(({expected,actual},index)=>assert(actual===expected,"Formula numeric/error handling case "+(index+1)+" returns "+expected+"."));
     const sampleHtml = '<h1>Regression heading</h1><p><strong>Bold text</strong> and <em>italic text</em>.</p><table><thead><tr><th>Item</th><th>Qty</th></tr></thead><tbody><tr><td>Apples</td><td>3</td></tr></tbody></table>';
