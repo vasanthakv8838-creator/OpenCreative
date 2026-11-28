@@ -50,6 +50,7 @@ const parseFormula = (source,stack) => {
   const accept=v=>peek()&&peek().value===v?(p++,true):false;
   const expect=v=>{if(!accept(v))throw Error("Expected "+v);};
   const flatten=x=>Array.isArray(x)?x.flat(Infinity):[x];
+  const numeric=x=>{if(isFormulaError(x))return x;if(x===""||x===null||x===undefined)return 0;if(typeof x==="boolean")return x?1:0;const n=Number(x);return Number.isFinite(n)?n:"#VALUE!";};
   const refVal=ref=>{const q=parseRef(ref);return cellValue(q.r,q.c,stack);};
   const compare=(a,op,b)=>{if(isFormulaError(a))return a;if(isFormulaError(b))return b;const x=typeof a==="number"?a:String(a).toLowerCase(),y=typeof b==="number"?b:String(b).toLowerCase();switch(op){case"=":case"==":return x===y;case"<>":case"!=":return x!==y;case">":return x>y;case"<":return x<y;case">=":return x>=y;case"<=":return x<=y;}};
   const primary=()=>{
@@ -78,8 +79,8 @@ const parseFormula = (source,stack) => {
         case"NOT":return !args[0];
         case"ROUND":return Number(Number(args[0]||0).toFixed(Math.max(0,Math.min(10,Number(args[1]||0)))));
         case"ABS":return Math.abs(Number(args[0]||0));
-        case"SQRT":return Math.sqrt(Number(args[0]));
-        case"POWER":return Math.pow(Number(args[0]),Number(args[1]));
+        case"SQRT":{const n=numeric(args[0]);return isFormulaError(n)?n:n<0?"#NUM!":Math.sqrt(n);}
+        case"POWER":{const a=numeric(args[0]),b=numeric(args[1]);if(isFormulaError(a))return a;if(isFormulaError(b))return b;const n=Math.pow(a,b);return Number.isFinite(n)?n:"#NUM!";}
         case"CONCAT":return flat.join("");
         case"LEN":return String(args[0]??"").length;
         case"UPPER":return String(args[0]??"").toUpperCase();
@@ -88,13 +89,13 @@ const parseFormula = (source,stack) => {
       }
     }
     if(token.value==="("){const v=expression();expect(")");return v;}
-    if(token.value==="-"||token.value==="+"){const v=Number(unary());return token.value==="-"?-v:v;}
+    if(token.value==="-"||token.value==="+"){const raw=unary();if(isFormulaError(raw))return raw;const v=numeric(raw);return isFormulaError(v)?v:token.value==="-"?-v:v;}
     throw Error("Invalid expression");
   };
   const unary=()=>primary();
-  const power=()=>{let a=unary();if(isFormulaError(a))return a;if(accept("^")){const b=power();if(isFormulaError(b))return b;a=Math.pow(Number(a),Number(b));}return a;};
-  const product=()=>{let a=power();while(peek()&&["*","/","%"].includes(peek().value)){const op=take().value,b=power();if(isFormulaError(a))return a;if(isFormulaError(b))return b;if((op==="/"||op==="%")&&Number(b)===0)return "#DIV/0!";a=op==="*"?Number(a)*Number(b):op==="/"?Number(a)/Number(b):Number(a)%Number(b);}return a;};
-  const sum=()=>{let a=product();while(peek()&&["+","-"].includes(peek().value)){const op=take().value,b=product();if(isFormulaError(a))return a;if(isFormulaError(b))return b;a=op==="+"?Number(a)+Number(b):Number(a)-Number(b);}return a;};
+  const power=()=>{let a=unary();if(isFormulaError(a))return a;if(accept("^")){const b=power();if(isFormulaError(b))return b;a=numeric(a);const exponent=numeric(b);if(isFormulaError(a))return a;if(isFormulaError(exponent))return exponent;const result=Math.pow(a,exponent);return Number.isFinite(result)?result:"#NUM!";}return a;};
+  const product=()=>{let a=power();while(peek()&&["*","/","%"].includes(peek().value)){const op=take().value,b=power();if(isFormulaError(a))return a;if(isFormulaError(b))return b;a=numeric(a);const rhs=numeric(b);if(isFormulaError(a))return a;if(isFormulaError(rhs))return rhs;if((op==="/"||op==="%")&&rhs===0)return "#DIV/0!";const result=op==="*"?a*rhs:op==="/"?a/rhs:a%rhs;if(!Number.isFinite(result))return "#NUM!";a=result;}return a;};
+  const sum=()=>{let a=product();while(peek()&&["+","-"].includes(peek().value)){const op=take().value,b=product();if(isFormulaError(a))return a;if(isFormulaError(b))return b;a=numeric(a);const rhs=numeric(b);if(isFormulaError(a))return a;if(isFormulaError(rhs))return rhs;const result=op==="+"?a+rhs:a-rhs;if(!Number.isFinite(result))return "#NUM!";a=result;}return a;};
   const expression=()=>{let a=sum();while(peek()&&[">","<",">=","<=","=","==","<>","!="].includes(peek().value)){const op=take().value;a=compare(a,op,sum());}return a;};
   const result=expression();if(p!==t.length)throw Error("Unexpected token");return result;
 };
